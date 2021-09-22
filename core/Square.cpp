@@ -25,7 +25,11 @@ namespace sam
         bgfx::setVertexBuffer(0, Cube::vbh);
         bgfx::setIndexBuffer(Cube::ibh);
 
-        Vec4f color = Vec4f(1, 0, 1, 1);
+        Vec4f color = Vec4f(0.4f, 0.4f, 0.4f, 1);
+        if (m_state == 1)
+            color = Vec4f(1.0f, 0, 0.4f, 1);
+        if (m_state == 2)
+            color = Vec4f(0.0f, 1.0f, 0.4f, 1);
         bgfx::setUniform(m_uparams, &color, 1);
 
         uint64_t state = 0

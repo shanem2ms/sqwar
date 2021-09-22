@@ -19,8 +19,7 @@ namespace sam
         m_width(-1),
         m_height(-1),
         m_currentTool(0),
-        m_gravityVel(0),        
-        m_flymode(true)
+        m_playerTurn(0)
     {
 
     }  
@@ -77,7 +76,20 @@ namespace sam
 
         Engine& e = Engine::Inst();
         Camera::Fly la = e.Cam().GetFly();
-        
+
+        Matrix44f vproj = e.Cam().ProjectionMatrix()* e.Cam().ViewMatrix();
+        invert(vproj);
+        Vec4f res;
+        xform(res, vproj, Vec4f(xb * 2 - 1, -yb * 2 + 1, 0.5f, 1));
+        res /= res[3];
+        int xsq = (int)(res[0] + (float)(boardSize / 2));
+        int ysq = (int)(res[1] + (float)(boardSize / 2));
+        if (m_playerTurn == 0)
+        {
+            PlayerTakeSquare(m_board, m_playerTurn, xsq, ysq);
+            m_playerTurn = 1;
+        }
+
         m_activeTouch->m_initCamDir = la.dir;
         m_activeTouch->SetInitialPos(Point2f(xb, yb));
     }
@@ -93,22 +105,93 @@ namespace sam
             m_activeTouch->SetDragPos(Point2f(xb, yb));
 
             Vec2f dragDiff = Point2f(xb, yb) - m_activeTouch->TouchPos();
-
-            Engine& e = Engine::Inst();
-            Camera::Fly la = e.Cam().GetFly();
-
-            la.dir[0] = m_activeTouch->m_initCamDir[0] - dragDiff[0] * 2;
-            la.dir[1] = m_activeTouch->m_initCamDir[1] - dragDiff[1] * 2;
-            la.dir[1] = std::max(la.dir[1], -pi_over_two);
-            e.Cam().SetFly(la);
-
         }
     }
 
     void World::TouchUp(int touchId)
     {        
         m_activeTouch = nullptr;
-        m_tiltVel = 0;
+    }
+
+    bool World::PlayerTakeSquare(BoardState& state, int playerIdx, int sqx, int sqy)
+    {
+        int opponent = 1 - playerIdx;
+        if (state.s[sqy * boardSize + sqx] == 0)
+        {
+            state.s[sqy * boardSize + sqx] = playerIdx + 1;
+            return true;
+        }
+        else if (state.s[sqy * boardSize + sqx] == playerIdx + 1)
+        {
+            if (playerIdx == 0)
+            {                
+                if ((sqx > 0 && state.s[sqy * boardSize + sqx - 1] == playerIdx + 1) ||
+                    (sqx < (boardSize - 1) && state.s[sqy * boardSize + sqx + 1] == playerIdx + 1))
+                {
+
+                }
+                else
+                {
+                    for (int mm = sqx; mm < boardSize && 
+                        state.s[sqy * boardSize + mm] != opponent + 1; ++mm)
+                    {
+                        state.s[sqy * boardSize + mm] = playerIdx + 1;
+                    }
+                    for (int mm = sqx; mm >= 0 && state.s[sqy * boardSize + mm] != opponent + 1; --mm)
+                    {
+                        state.s[sqy * boardSize + mm] = playerIdx + 1;
+                    }
+                }
+            }
+            else if (playerIdx == 1)
+            {
+                for (int mm = sqy; mm < boardSize; ++mm)
+                {
+                    if (state.s[mm * boardSize + sqx] == opponent + 1)
+                        break;
+                    else
+                        state.s[mm * boardSize + sqx] = playerIdx + 1;
+                }
+                for (int mm = sqx; mm >= 0; --mm)
+                {
+                    if (state.s[mm * boardSize + sqx] == opponent + 1)
+                        break;
+                    else
+                        state.s[mm * boardSize + sqx] = playerIdx + 1;
+                }
+            }
+            return true;
+        }
+
+        return false;
+    }
+
+    void World::FindOptimalSquare(const BoardState &state, int playerIdx, int& sqx, int& sqy)
+    {
+        int bestScore = -(boardSize * boardSize);
+        int bestx = 0;
+        int besty = 0;
+        for (int x = 0; x < boardSize; ++x)
+        {
+            for (int y = 0; y < boardSize; ++y)
+            {
+                if (state.s[sqy * boardSize + sqx] == ((1 - playerIdx) + 1))
+                    continue;
+
+                BoardState copy = state;
+                World::PlayerTakeSquare(copy, playerIdx, x, y);
+                int score = copy.Score(playerIdx);
+                if (score > bestScore)
+                {
+                    bestScore = score;
+                    bestx = x;
+                    besty = y;
+                }
+            }
+        }
+
+        sqx = bestx;
+        sqy = besty;
     }
 
     const int LeftShift = 16;
@@ -130,25 +213,18 @@ namespace sam
             isPaused = !isPaused;
             break;
         case LeftShift:
-            m_camVel[1] -= speed;
             break;
         case SpaceBar:
-            m_camVel[1] += speed;
             break;
         case AButton:
-            m_camVel[0] -= speed;
             break;
         case DButton:
-            m_camVel[0] += speed;
             break;
         case WButton:
-            m_camVel[2] -= speed;
             break;
         case SButton:
-            m_camVel[2] += speed;
             break;
         case FButton:
-            m_flymode = !m_flymode;
             break;
         }
         if (k >= '1' && k <= '9')
@@ -163,15 +239,12 @@ namespace sam
         {
         case LeftShift:
         case SpaceBar:
-            m_camVel[1] = 0;
             break;
         case AButton:
         case DButton:
-            m_camVel[0] = 0;
             break;
         case WButton:
         case SButton:
-            m_camVel[2] = 0;
             break;
         }
     }
@@ -182,7 +255,7 @@ namespace sam
         {
             m_worldGroup = std::make_shared<SceneGroup>();
             e.Root()->AddItem(m_worldGroup);
-            const int sq = 32;
+            const int sq = boardSize;
             m_squares.resize(sq * sq);
             for (int x = 0; x < sq; x++)
             {
@@ -200,10 +273,23 @@ namespace sam
             m_shader = e.LoadShader("vs_cubes.bin", "fs_cubes.bin");
             m_worldGroup->BeforeDraw([this](DrawContext& ctx) { ctx.m_pgm = m_shader; return true; });
         }
-        e.Cam().SetOrthoMatrix(16);
+
+        bool isDirty = false;
+        if (m_playerTurn == 1)
+        {
+            int sqx = 0, sqy = 0;
+            FindOptimalSquare(m_board, m_playerTurn, sqx, sqy);
+            PlayerTakeSquare(m_board, m_playerTurn, sqx, sqy);
+            m_playerTurn = 0;
+            isDirty = true;
+        }
+        if (isDirty)
+        {
+            for (int idx = 0; idx < boardSize * boardSize; ++idx)
+                m_squares[idx]->m_state = m_board.s[idx];
+        }
+        e.Cam().SetOrthoMatrix(boardSize / 2);
         Camera::Fly la = e.Cam().GetFly();
-        la.pos += m_camVel;
-        e.Cam().SetFly(la);
     }
 
     void World::Layout(int w, int h)

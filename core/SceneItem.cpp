@@ -204,7 +204,8 @@ namespace sam
         else
         {
             float size = m_far;
-            setOrtho<float>(m_proj, -size, -size, size, size, -size, size);
+            float a = 1 / aspect;
+            setOrtho<float>(m_proj, -size, -size * a, size, size * a, -size, size);
         }
 
         if (m_mode == 0)

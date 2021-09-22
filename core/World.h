@@ -12,6 +12,29 @@ namespace sam
     class Engine;
     class Touch;
     class TargetCube;
+
+    static const int boardSize = 32;
+    struct BoardState
+    {
+        BoardState() 
+        {
+            memset(s, 0, sizeof(s));
+        }
+        char s[boardSize * boardSize];
+
+        int Score(int playerIdx)
+        {
+            int curScore = 0;
+            int pscore = playerIdx + 1;
+            int oscore = (1 - playerIdx) + 1;
+            for (int idx = 0; idx < boardSize * boardSize; ++idx)
+            {
+                if (s[idx] == pscore) curScore++;
+                if (s[idx] == oscore) curScore--;
+            }
+            return curScore;
+        }
+    };
     
     class World
     {
@@ -19,17 +42,14 @@ namespace sam
 
         int m_width;
         int m_height;
-        gmtl::Point3f m_camVel;
-        float m_tiltVel;
-        bool m_flymode;
-
-        float m_gravityVel;
 
         std::shared_ptr<SceneGroup> m_worldGroup;
         std::shared_ptr<Touch> m_activeTouch;
         int m_currentTool;
         bgfx::ProgramHandle m_shader;        
         std::vector<std::shared_ptr<Square>> m_squares;
+        int m_playerTurn;
+        BoardState m_board;
     public:
 
         void Layout(int w, int h);
@@ -42,6 +62,8 @@ namespace sam
         void KeyDown(int k);
         void KeyUp(int k);
         void Open(const std::string &path);
+        static bool PlayerTakeSquare(BoardState& state, int playerIdx, int sqx, int sqy);
+        static void FindOptimalSquare(const BoardState& state, int playerIdx, int &sqx, int &sqy);
     };
 
 }

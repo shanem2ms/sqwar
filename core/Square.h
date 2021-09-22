@@ -12,6 +12,9 @@ namespace sam
         AABoxf GetBounds() const override;
         bgfxh<bgfx::UniformHandle> m_uparams;
 
+    public:
+        int m_state;
+        Square() : m_state(0) {}
     protected:
 
         void Initialize(DrawContext& nvg) override;

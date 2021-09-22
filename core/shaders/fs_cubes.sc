@@ -12,7 +12,7 @@ void main()
 {
 	float xv = v_texcoord0.x * (1 - v_texcoord0.x);
 	float yv = v_texcoord0.y * (1 - v_texcoord0.y);
-	vec3 lightdir = vec3(1, 1, 0);
+	vec3 lightdir = vec3(0, 1, 0.5);
 	normalize(lightdir);
 	float diffuse = abs(dot(lightdir, v_normal));
 	//if (xv > 0.02 && yv > 0.02)

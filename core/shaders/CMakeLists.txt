@@ -1,6 +1,6 @@
-set (CS_SHADERS cs_erosion.sc cs_copyparent.sc cs_copysect.sc cs_noise.sc)
+set (CS_SHADERS )
 set (VS_SHADERS vs_cubes.sc vs_hud.sc)
-set (FS_SHADERS fs_cubes.sc fs_targetcube.sc fs_hud.sc)
+set (FS_SHADERS fs_cubes.sc fs_hud.sc)
 
 set (CS_BINS ${CS_SHADERS})
 list(TRANSFORM CS_BINS REPLACE ".sc" ".bin" )
