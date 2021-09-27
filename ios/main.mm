@@ -8,6 +8,8 @@
 
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
+#import <CoreVideo/CoreVideo.h>
+#import <AVFoundation/AVFoundation.h>
 #import <QuartzCore/CAEAGLLayer.h>
 
 #if __IPHONE_8_0 && !TARGET_IPHONE_SIMULATOR  // check if sdk/target supports metal
@@ -330,6 +332,10 @@ static    void* m_device = NULL;
 {
     UIWindow* m_window;
     View* m_view;
+    dispatch_queue_t m_sessionQueue;
+    dispatch_queue_t m_dataQueue;
+    AVCaptureSession *m_pSession;
+    
 }
 
 @property (nonatomic, retain) UIWindow* m_window;
@@ -364,7 +370,30 @@ static    void* m_device = NULL;
     [m_view setContentScaleFactor: scaleFactor ];
 
     s_ctx = new Context((uint32_t)(scaleFactor*rect.size.width), (uint32_t)(scaleFactor*rect.size.height));
+    
+    m_dataQueue =
+        dispatch_queue_create("avqueue", nullptr);
+    m_sessionQueue =
+        dispatch_queue_create("sessionqueue", nullptr);
+    m_pSession = [[AVCaptureSession alloc] init];
+    [AVCaptureDevice requestAccessForMediaType:AVMediaTypeVideo  completionHandler:^(BOOL granted) {
+        if (granted) {
+            //self.microphoneConsentState = PrivacyConsentStateGranted;
+        }
+        else {
+            //self.microphoneConsentState = PrivacyConsentStateDenied;
+        }
+    }];
+    dispatch_async(m_sessionQueue,  ^(void){
+        [self configureSession];
+    });
     return YES;
+}
+
+- (void)configureSession
+{
+    
+    
 }
 
 - (void)applicationWillResignActive:(UIApplication *)application

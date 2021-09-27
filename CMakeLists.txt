@@ -69,7 +69,7 @@ add_dependencies(shaders Bgfx)
 
 if (APPLE)
 add_subdirectory(ios)
-add_dependencies(ios core)
+add_dependencies(sqwar core)
 else()
 add_subdirectory(win)
 add_dependencies(sqwar core)

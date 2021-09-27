@@ -9,7 +9,7 @@ set(CMAKE_CXX_FLAGS "-x objective-c++")
 
 set(CMAKE_CONFIGURATION_TYPES "Debug;Release") 
 
-set(IOSAPPNAME app2)
+set(IOSAPPNAME ${PROJECT_NAME})
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR})
 
 set (BGFX_INCLUDE_ROOT ${CMAKE_INSTALL_PREFIX}/include)
@@ -62,11 +62,13 @@ find_library(METALKITLIB MetalKit)
 find_library(UIKITLIB UIKit)
 find_library(MODELIOLIB ModelIO)
 find_library(OPENGL OpenGLES)
+find_library(AVFOUNDATION AVFoundation)
 
 
 set (PLATFORMLIBS 
 "${FOUNDATIONLIB};"
 "${COREFOUNDATIONLIB};"
+"${AVFOUNDATION};"
 "${METALLIB};"
 "${QUARTZCORELIB};"
 "${METALKITLIB};"
