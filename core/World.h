@@ -13,26 +13,47 @@ namespace sam
     class Touch;
     class TargetCube;
 
-    static const int boardSize = 32;
-    struct BoardState
+    static const int boardSize = 16;
+    class BoardState
     {
-        BoardState() 
+    private:
+        char s[boardSize * boardSize];
+        int score;
+    public:
+        BoardState() :
+            score(0)
         {
             memset(s, 0, sizeof(s));
         }
-        char s[boardSize * boardSize];
 
-        int Score(int playerIdx)
+        inline char Raw(int idx) const
         {
-            int curScore = 0;
-            int pscore = playerIdx + 1;
-            int oscore = (1 - playerIdx) + 1;
-            for (int idx = 0; idx < boardSize * boardSize; ++idx)
+            return s[idx];
+        }
+
+        inline void SA(int x, int y, int playerIdx)
+        {
+            if (playerIdx == 0)
             {
-                if (s[idx] == pscore) curScore++;
-                if (s[idx] == oscore) curScore--;
+                s[y * boardSize + x] = 1;
+                score++;
             }
-            return curScore;
+            if (playerIdx == 1)
+            {
+                s[x * boardSize + y] = 2;
+                score--;
+            }
+        }
+
+        inline char S(int x, int y, int playerIdx) const
+        {
+            return playerIdx == 0 ? s[y * boardSize + x] :
+                s[x * boardSize + y];
+        }
+
+        int Score()
+        {
+            return score;
         }
     };
     
@@ -42,6 +63,7 @@ namespace sam
 
         int m_width;
         int m_height;
+        bool m_boardDirty;
 
         std::shared_ptr<SceneGroup> m_worldGroup;
         std::shared_ptr<Touch> m_activeTouch;
@@ -63,7 +85,7 @@ namespace sam
         void KeyUp(int k);
         void Open(const std::string &path);
         static bool PlayerTakeSquare(BoardState& state, int playerIdx, int sqx, int sqy);
-        static void FindOptimalSquare(const BoardState& state, int playerIdx, int &sqx, int &sqy);
+        static int FindOptimalSquare(const BoardState& state, int playerIdx, int &sqx, int &sqy, int level);
     };
 
 }
