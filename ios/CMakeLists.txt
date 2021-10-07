@@ -56,6 +56,7 @@ add_executable(${IOSAPPNAME} MACOSX_BUNDLE ${ALL_FILES})
 
 find_library(FOUNDATIONLIB Foundation)
 find_library(COREFOUNDATIONLIB CoreFoundation)
+find_library(COREMEDIALIB CoreMedia)
 find_library(METALLIB Metal)
 find_library(QUARTZCORELIB QuartzCore)
 find_library(METALKITLIB MetalKit)
@@ -70,6 +71,7 @@ set (PLATFORMLIBS
 "${COREFOUNDATIONLIB};"
 "${AVFOUNDATION};"
 "${METALLIB};"
+"${COREMEDIALIB};"
 "${QUARTZCORELIB};"
 "${METALKITLIB};"
 "${UIKITLIB};"

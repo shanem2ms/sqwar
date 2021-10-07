@@ -328,6 +328,36 @@ static    void* m_device = NULL;
 
 @end
 
+@interface AVDelegate : NSObject<AVCaptureDataOutputSynchronizerDelegate>
+{
+    AVCaptureDepthDataOutput *m_pDataOutput;
+}
+@end
+
+@implementation AVDelegate
+
+- (id)initWithDepthOutput:(AVCaptureDepthDataOutput *)pDataOutput
+{
+    self = [super init];
+    m_pDataOutput = pDataOutput;
+    return self;
+}
+
+- (void)dataOutputSynchronizer:(AVCaptureDataOutputSynchronizer *)synchronizer
+didOutputSynchronizedDataCollection:(AVCaptureSynchronizedDataCollection *)synchronizedDataCollection
+{
+    AVCaptureSynchronizedDepthData *pSyncData =
+        (AVCaptureSynchronizedDepthData *)[synchronizedDataCollection synchronizedDataForCaptureOutput:m_pDataOutput];
+    
+    if (pSyncData.depthDataWasDropped)
+        return;
+    
+    AVDepthData *pDepthData = pSyncData.depthData;
+    CVPixelBufferRef pixelBuffer = pDepthData.depthDataMap;
+}
+
+@end
+
 @interface AppDelegate : UIResponder<UIApplicationDelegate>
 {
     UIWindow* m_window;
@@ -335,6 +365,8 @@ static    void* m_device = NULL;
     dispatch_queue_t m_sessionQueue;
     dispatch_queue_t m_dataQueue;
     AVCaptureSession *m_pSession;
+    AVCaptureDepthDataOutput *m_pDataOutput;
+    AVDelegate *m_pAVDelegate;
     
 }
 
@@ -342,6 +374,9 @@ static    void* m_device = NULL;
 @property (nonatomic, retain) View* m_view;
 
 @end
+
+
+
 
 @implementation AppDelegate
 
@@ -376,6 +411,7 @@ static    void* m_device = NULL;
     m_sessionQueue =
         dispatch_queue_create("sessionqueue", nullptr);
     m_pSession = [[AVCaptureSession alloc] init];
+    m_pDataOutput = [[AVCaptureDepthDataOutput alloc] init];
     [AVCaptureDevice requestAccessForMediaType:AVMediaTypeVideo  completionHandler:^(BOOL granted) {
         if (granted) {
             //self.microphoneConsentState = PrivacyConsentStateGranted;
@@ -387,13 +423,62 @@ static    void* m_device = NULL;
     dispatch_async(m_sessionQueue,  ^(void){
         [self configureSession];
     });
+    
+    
+    
     return YES;
 }
 
 - (void)configureSession
 {
+    AVCaptureDevice *pDevice = nullptr;
+    if (@available(iOS 11.1, *)) {
+        AVCaptureDeviceDiscoverySession *captureDevice =
+        [AVCaptureDeviceDiscoverySession
+         discoverySessionWithDeviceTypes:@[AVCaptureDeviceTypeBuiltInTrueDepthCamera]
+         mediaType:AVMediaTypeVideo
+         position:AVCaptureDevicePositionFront];
+        pDevice = captureDevice.devices.lastObject;
+    } else {
+        // Fallback on earlier versions
+    }
+    NSError *perror;
+    AVCaptureDeviceInput *pInput = [[AVCaptureDeviceInput alloc] initWithDevice:pDevice error:&perror];
+    [m_pSession beginConfiguration];
+    [m_pSession setSessionPreset:AVCaptureSessionPreset640x480];
+    [m_pSession addInput:pInput];
+    [m_pSession addOutput:m_pDataOutput];
+    [m_pDataOutput setFilteringEnabled:true];
+    AVCaptureConnection *pConnection = [m_pDataOutput connectionWithMediaType:AVMediaTypeDepthData];
+    [pConnection setEnabled:true];
+    NSArray<AVCaptureDeviceFormat *> *depthFormats = [[pDevice activeFormat] supportedDepthDataFormats];
+    unsigned long cnt = [depthFormats count];
+    unsigned long foundIdx = -1;
+    int maxwidth = 0;
+    for (unsigned long fidx = 0; fidx < cnt; fidx++)
+    {
+        if (CMFormatDescriptionGetMediaSubType([depthFormats[fidx] formatDescription]) == kCVPixelFormatType_DepthFloat16)
+        {
+            int w = CMVideoFormatDescriptionGetDimensions([depthFormats[fidx] formatDescription]).width;
+            if (w > maxwidth)
+            {
+                foundIdx = fidx;
+                maxwidth = w;
+            }
+        }
+    }
     
+    [pDevice lockForConfiguration:&perror];
+    [pDevice setActiveDepthDataFormat:depthFormats[foundIdx]];
+    [pDevice unlockForConfiguration];
+    AVCaptureDataOutputSynchronizer *pOutputSyncronizer =
+        [[AVCaptureDataOutputSynchronizer alloc] initWithDataOutputs:@[m_pDataOutput]];
     
+    m_pAVDelegate = [[AVDelegate alloc] initWithDepthOutput:m_pDataOutput];
+    [pOutputSyncronizer setDelegate:m_pAVDelegate queue:m_dataQueue];
+    [m_pSession commitConfiguration];
+    
+    [m_pSession startRunning];
 }
 
 - (void)applicationWillResignActive:(UIApplication *)application

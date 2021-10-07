@@ -3,7 +3,6 @@
 #include <bx/readerwriter.h>
 #include <bx/file.h>
 #include "Hud.h"
-#include <portaudio.h>
 
 namespace sam
 {
@@ -15,8 +14,6 @@ namespace sam
     {
         sEngine = this;
         m_hud = std::make_shared<Hud>();
-
-        int numDevices = Pa_GetDeviceCount();
     }
 
     void Engine::Resize(int w, int h)
