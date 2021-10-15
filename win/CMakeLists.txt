@@ -20,6 +20,8 @@ set(Main_Files
 add_executable(${PROJECT_NAME} WIN32 ${Main_Files})
 
 set (PLATFORMLIBS
+"iphlpapi;"
+"ws2_32;"
 "d3dcompiler;"
 "dxgi;"
 "dxguid;"
@@ -32,7 +34,7 @@ target_link_libraries(${PROJECT_NAME} LINK_PUBLIC
     ${BGFX_LIB}/astc-codec.lib 
     ${BGFX_LIB}/bimg.lib 
     ${BGFX_LIB}/bx.lib
-    ${VCPKG_INSTALL_PATH}/lib/portaudio.lib
+    mdns/mdns
     core 
     ${PLATFORMLIBS}
        )

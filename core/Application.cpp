@@ -4,6 +4,12 @@
 #include "Engine.h"
 #include "World.h"
 #include "imgui.h"
+#include "mdns.h"
+//#include 
+
+extern "C" {
+    int send_mdns_query(const char* service, int record);
+}
 
 namespace sam
 {
@@ -77,6 +83,8 @@ namespace sam
         std::string dbPath = m_documentsPath + "/testlvl";
         m_world->Open(dbPath);
         imguiCreate();
+
+        send_mdns_query("SqWar", 12);
     }
 
     const float Pi = 3.1415297;
