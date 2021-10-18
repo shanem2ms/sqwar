@@ -15,6 +15,10 @@ extern "C" {
     int send_mdns_query(const char* service, int record,
         struct ipaddr_array* poutip);
     int service_with_hostname(const char* service);
+    mdns_string_t
+        ipv4_address_to_string(char* buffer, size_t capacity, const struct sockaddr_in* addr,
+            size_t addrlen);
+
 }
 
 namespace sam
@@ -166,6 +170,11 @@ namespace sam
     {
         struct ipaddr_array iparray;
         send_mdns_query("SqWar", 12, &iparray);
+        char ipaddr[256];
+        for (int idx = 0; idx < iparray.count; ++idx)
+        {
+            ipv4_address_to_string(ipaddr, sizeof(ipaddr), &iparray.addr[idx], sizeof(iparray.addr[idx]));
+        }
     }
 
     bool Client::SendData(const unsigned char* data, size_t len)

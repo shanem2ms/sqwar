@@ -56,7 +56,7 @@ typedef struct {
 	mdns_record_t txt_record[2];
 } service_t;
 
-static mdns_string_t
+mdns_string_t
 ipv4_address_to_string(char* buffer, size_t capacity, const struct sockaddr_in* addr,
                        size_t addrlen) {
 	char host[NI_MAXHOST] = {0};
