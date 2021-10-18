@@ -99,8 +99,7 @@ namespace sam
     };
 
 
-    //send_mdns_query("SqWar", 12);
-
+    
     Server::Server() :
         m_mdnsThread(MdsnThreadFunc),
         m_tcpServerThread(TcpThreadFunc)
@@ -118,18 +117,21 @@ namespace sam
 
     void Server::TcpThreadFunc()
     {
+#ifdef _WIN32
         WORD versionWanted = MAKEWORD(2, 2);
         WSADATA wsaData;
         if (WSAStartup(versionWanted, &wsaData)) {
             printf("Failed to initialize WinSock\n");
             return;
         }
-
+#endif
         asio::io_context io_context;
         TcpServer tcpServer(io_context, 13579);
         io_context.run();
 
+#ifdef _WIN32
         WSACleanup();
+#endif
     }
 
     class TcpClient
@@ -145,7 +147,7 @@ namespace sam
             asio::io_context io_context;
             tcp::socket s(io_context);
             tcp::resolver resolver(io_context);
-            asio::connect(s, resolver.resolve("127.0.0.1", "13579"));
+            asio::connect(s, resolver.resolve("192.168.1.40", "13579"));
 
             asio::write(s, asio::buffer(data, len));
 
@@ -161,7 +163,7 @@ namespace sam
     Client::Client() :
         m_tcpClient(std::make_unique<TcpClient>())
     {
-
+        send_mdns_query("SqWar", 12);
     }
 
     bool Client::SendData(const unsigned char* data, size_t len)

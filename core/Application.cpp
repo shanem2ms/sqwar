@@ -5,6 +5,7 @@
 #include "World.h"
 #include "Network.h"
 #include "imgui.h"
+#include <thread>
 //#include 
 
 
@@ -26,7 +27,9 @@ namespace sam
         s_pInst = this;
         m_engine = std::make_unique<Engine>();
         m_world = std::make_unique<World>();
+#ifdef _WIN32
         m_server = std::make_unique<Server>();
+#endif
     }
 
     Application& Application::Inst()
@@ -81,8 +84,8 @@ namespace sam
         std::string dbPath = m_documentsPath + "/testlvl";
         m_world->Open(dbPath);
         imguiCreate();
-
-        _sleep(100);
+        using namespace std::chrono_literals;
+        std::this_thread::sleep_for(100ms);
         char* msg = "Hello world";
         Client c;
         c.SendData((unsigned char *)msg, strlen(msg));
