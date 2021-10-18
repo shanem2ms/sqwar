@@ -72,6 +72,12 @@ enum mdns_entry_type {
 	MDNS_ENTRYTYPE_ADDITIONAL = 3
 };
 
+struct ipaddr_array
+{
+	struct sockaddr_in addr[10];
+	int count;
+};
+
 enum mdns_class { MDNS_CLASS_IN = 1 };
 
 typedef enum mdns_record_type mdns_record_type_t;

@@ -109,6 +109,24 @@ ip_address_to_string(char* buffer, size_t capacity, const struct sockaddr* addr,
 
 // Callback handling parsing answers to queries sent
 static int
+get_ipaddr_callback(int sock, const struct sockaddr* from, size_t addrlen, mdns_entry_type_t entry,
+	uint16_t query_id, uint16_t rtype, uint16_t rclass, uint32_t ttl, const void* data,
+	size_t size, size_t name_offset, size_t name_length, size_t record_offset,
+	size_t record_length, void* user_data) 
+{
+	struct ipaddr_array* parr = (struct ipaddr_array*)(user_data);
+	if (rtype == MDNS_RECORDTYPE_A) {
+		struct sockaddr_in addr;
+		mdns_record_parse_a(data, size, record_offset, record_length, &addr);
+		parr->addr[parr->count] = addr;
+		parr->count++;
+	}
+
+	return 0;
+}
+
+// Callback handling parsing answers to queries sent
+static int
 query_callback(int sock, const struct sockaddr* from, size_t addrlen, mdns_entry_type_t entry,
                uint16_t query_id, uint16_t rtype, uint16_t rclass, uint32_t ttl, const void* data,
                size_t size, size_t name_offset, size_t name_length, size_t record_offset,
@@ -702,7 +720,8 @@ send_dns_sd(void) {
 }
 
 // Send a mDNS query
-int send_mdns_query(const char* service, int record) {
+int send_mdns_query(const char* service, int record,
+	struct ipaddr_array *poutip) {
 	int sockets[32];
 	int query_id[32];
 	int num_sockets = open_client_sockets(sockets, sizeof(sockets) / sizeof(sockets[0]), 0);
@@ -714,7 +733,8 @@ int send_mdns_query(const char* service, int record) {
 
 	size_t capacity = 2048;
 	void* buffer = malloc(capacity);
-	void* user_data = 0;
+
+	poutip->count = 0;
 	size_t records;
 
 	const char* record_name = "PTR";
@@ -757,8 +777,8 @@ int send_mdns_query(const char* service, int record) {
 		if (res > 0) {
 			for (int isock = 0; isock < num_sockets; ++isock) {
 				if (FD_ISSET(sockets[isock], &readfs)) {
-					records += mdns_query_recv(sockets[isock], buffer, capacity, query_callback,
-					                           user_data, query_id[isock]);
+					records += mdns_query_recv(sockets[isock], buffer, capacity, get_ipaddr_callback,
+						poutip, query_id[isock]);
 				}
 				FD_SET(sockets[isock], &readfs);
 			}

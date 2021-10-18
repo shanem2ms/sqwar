@@ -12,7 +12,8 @@
 
 
 extern "C" {
-    int send_mdns_query(const char* service, int record);
+    int send_mdns_query(const char* service, int record,
+        struct ipaddr_array* poutip);
     int service_with_hostname(const char* service);
 }
 
@@ -163,7 +164,8 @@ namespace sam
     Client::Client() :
         m_tcpClient(std::make_unique<TcpClient>())
     {
-        send_mdns_query("SqWar", 12);
+        struct ipaddr_array iparray;
+        send_mdns_query("SqWar", 12, &iparray);
     }
 
     bool Client::SendData(const unsigned char* data, size_t len)
