@@ -5,10 +5,12 @@
 #include "World.h"
 #include "imgui.h"
 #include "mdns.h"
+#include <thread>
 //#include 
 
 extern "C" {
     int send_mdns_query(const char* service, int record);
+    int service_with_hostname(const char* service);
 }
 
 namespace sam
@@ -24,7 +26,8 @@ namespace sam
         m_touchPos(0, 0),
         m_width(0),
         m_frameIdx(0),
-        m_buttonDown(false)
+        m_buttonDown(false),
+        m_mdnsThread(SendMDNSQueryThread)
     {
         s_pInst = this;
         m_engine = std::make_unique<Engine>();
@@ -84,7 +87,13 @@ namespace sam
         m_world->Open(dbPath);
         imguiCreate();
 
-        send_mdns_query("SqWar", 12);
+        
+        //send_mdns_query("SqWar", 12);
+    }
+
+    void Application::SendMDNSQueryThread()
+    {
+        service_with_hostname("SqWar");
     }
 
     const float Pi = 3.1415297;
@@ -130,6 +139,6 @@ namespace sam
     }
     Application::~Application()
     {
-
+        m_mdnsThread.join();
     }
 }

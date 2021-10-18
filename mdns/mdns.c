@@ -1012,6 +1012,50 @@ fuzz_mdns(void) {
 
 #endif
 
+ 
+int service_with_hostname(const char* service)
+{
+	const char* hostname = "dummy-host";
+	int query_record = MDNS_RECORDTYPE_PTR;
+	int service_port = 42424;
+
+#ifdef _WIN32
+
+	WORD versionWanted = MAKEWORD(1, 1);
+	WSADATA wsaData;
+	if (WSAStartup(versionWanted, &wsaData)) {
+		printf("Failed to initialize WinSock\n");
+		return -1;
+	}
+
+	char hostname_buffer[256];
+	DWORD hostname_size = (DWORD)sizeof(hostname_buffer);
+	if (GetComputerNameA(hostname_buffer, &hostname_size))
+		hostname = hostname_buffer;
+
+#else
+
+	char hostname_buffer[256];
+	size_t hostname_size = sizeof(hostname_buffer);
+	if (gethostname(hostname_buffer, hostname_size) == 0)
+		hostname = hostname_buffer;
+
+#endif
+
+	
+
+#ifdef MDNS_FUZZING
+	fuzz_mdns();
+#else
+	int ret = service_mdns(hostname, service, service_port);
+#endif
+
+#ifdef _WIN32
+	WSACleanup();
+#endif
+
+	return 0;
+}
 #if 0
 
 int

@@ -2,6 +2,8 @@
 
 #include <memory>
 #include <string>
+#include <thread>
+#include <vector>
 #include "gmtl/Vec.h"
 
 namespace sam
@@ -21,6 +23,7 @@ class Application
     int m_frameIdx;
     int m_buttonDown;
     std::string m_documentsPath;
+    std::thread m_mdnsThread;
 
 public:    
     Application();
@@ -36,6 +39,7 @@ public:
     void Tick(float time);
     void Draw();
     void Initialize(const char *folder);
+    static void SendMDNSQueryThread();
     const std::string &Documents() const
     { return m_documentsPath; }
     void OnDepthBuffer(const std::vector<float> &pixelData);
