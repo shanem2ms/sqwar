@@ -20,6 +20,7 @@ set(Header_Files
     "Engine.h"
     "Hud.h"
     "SceneItem.h"
+    "Network.h"
     "World.h"
     "Mesh.h"
     "Square.h"
@@ -45,6 +46,7 @@ set(Source_Files
     "SceneItem.cpp"
     "World.cpp"
     "Mesh.cpp"
+    "Network.cpp"
     "Square.cpp"
     "imgui/imgui.cpp"
     "imgui/dear-imgui/imgui.cpp"
@@ -79,6 +81,7 @@ target_include_directories(core PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/imgui/."
     "${CMAKE_SOURCE_DIR}/mdns/."
     "${VCPKG_INSTALL_PATH}/include"
+    "./asio/include"
     ${BGFX_INCLUDE_ROOT}
     ${BX_INC_DIR_COMPAT}
     )

@@ -3,15 +3,10 @@
 #include <bgfx/bgfx.h>
 #include "Engine.h"
 #include "World.h"
+#include "Network.h"
 #include "imgui.h"
-#include "mdns.h"
-#include <thread>
 //#include 
 
-extern "C" {
-    int send_mdns_query(const char* service, int record);
-    int service_with_hostname(const char* service);
-}
 
 namespace sam
 {
@@ -26,12 +21,12 @@ namespace sam
         m_touchPos(0, 0),
         m_width(0),
         m_frameIdx(0),
-        m_buttonDown(false),
-        m_mdnsThread(SendMDNSQueryThread)
+        m_buttonDown(false)
     {
         s_pInst = this;
         m_engine = std::make_unique<Engine>();
         m_world = std::make_unique<World>();
+        m_server = std::make_unique<Server>();
     }
 
     Application& Application::Inst()
@@ -80,20 +75,18 @@ namespace sam
         m_engine->Tick(time);
     }
 
-    void Application::Initialize(const char *folder)
+    void Application::Initialize(const char* folder)
     {
         m_documentsPath = folder;
         std::string dbPath = m_documentsPath + "/testlvl";
         m_world->Open(dbPath);
         imguiCreate();
 
-        
-        //send_mdns_query("SqWar", 12);
-    }
+        _sleep(100);
+        char* msg = "Hello world";
+        Client c;
+        c.SendData((unsigned char *)msg, strlen(msg));
 
-    void Application::SendMDNSQueryThread()
-    {
-        service_with_hostname("SqWar");
     }
 
     const float Pi = 3.1415297;
@@ -133,12 +126,12 @@ namespace sam
         m_frameIdx = bgfx::frame() + 1;
     }
 
-    void Application::OnDepthBuffer(const std::vector<float> &pixelData)
+    void Application::OnDepthBuffer(const std::vector<float>& pixelData)
     {
-    
+
     }
     Application::~Application()
     {
-        m_mdnsThread.join();
     }
+
 }

@@ -12,6 +12,7 @@ namespace sam
 class World;
 class Engine;
 struct DrawContext;
+class Server;
 class Application
 {
     std::unique_ptr<World> m_world;
@@ -23,7 +24,7 @@ class Application
     int m_frameIdx;
     int m_buttonDown;
     std::string m_documentsPath;
-    std::thread m_mdnsThread;
+    std::unique_ptr<Server> m_server;
 
 public:    
     Application();
