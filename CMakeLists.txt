@@ -68,12 +68,11 @@ add_dependencies(shaders Bgfx)
 
 if (APPLE)
 add_subdirectory(ios)
-add_dependencies(sqwar core)
 else()
 add_subdirectory(win)
+endif()
 add_dependencies(sqwar core)
 add_dependencies(sqwar mdns)
-endif()
 
 set(CMAKE_XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER ${BUNDLE_ID})
 set(CMAKE_XCODE_ATTRIBUTE_DEVELOPMENT_TEAM "73CP3TPHE9")

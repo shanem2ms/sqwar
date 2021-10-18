@@ -38,6 +38,7 @@ public:
     void Initialize(const char *folder);
     const std::string &Documents() const
     { return m_documentsPath; }
+    void OnDepthBuffer(const std::vector<float> &pixelData);
 };
 
 }

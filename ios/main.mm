@@ -24,6 +24,7 @@
 #include <bx/thread.h>
 #include "bgfx_utils.h"
 #include "Application.h"
+#include <vector>
 
 namespace entry
 {
@@ -31,7 +32,7 @@ namespace entry
     {
         int m_argc;
         const char* const* m_argv;
-
+        
         static int32_t threadFunc(bx::Thread* _thread, void* _userData);
     };
 
@@ -60,6 +61,7 @@ namespace entry
 
         MainThreadEntry m_mte;
         bx::Thread m_thread;
+        sam::Application *m_pApplication;
 
         EventQueue m_eventQueue;
     };
@@ -93,34 +95,8 @@ namespace entry
         NSString *docPath = pUrl.absoluteString;
         
         MainThreadEntry* self = (MainThreadEntry*)_userData;
-        int32_t result = main(self->m_argc, self->m_argv, [documentsDirectory UTF8String]);
-        /*
-        m_width  = _width;
-        m_height = _height;
-        m_debug  = BGFX_DEBUG_TEXT;
-        m_reset  = BGFX_RESET_VSYNC;
-
-        bgfx::Init init;
-        init.type     = args.m_type;
-        init.vendorId = args.m_pciId;
-        init.resolution.width  = m_width;
-        init.resolution.height = m_height;
-        init.resolution.reset  = m_reset;
-        bgfx::init(init);
-
-        // Enable debug text.
-        bgfx::setDebug(m_debug);
-
-        // Set view 0 clear state.
-        bgfx::setViewClear(0
-            , BGFX_CLEAR_COLOR|BGFX_CLEAR_DEPTH
-            , 0x303030ff
-            , 1.0f
-            , 0
-            );
+        s_ctx->m_pApplication = main(self->m_argc, self->m_argv, [documentsDirectory UTF8String]);
         
-        app.Initialize(docPath);
-        app.Resize(_width, _height);*/
         return 0;
     }
 
@@ -334,30 +310,6 @@ static    void* m_device = NULL;
 }
 @end
 
-@implementation AVDelegate
-
-- (id)initWithDepthOutput:(AVCaptureDepthDataOutput *)pDataOutput
-{
-    self = [super init];
-    m_pDataOutput = pDataOutput;
-    return self;
-}
-
-- (void)dataOutputSynchronizer:(AVCaptureDataOutputSynchronizer *)synchronizer
-didOutputSynchronizedDataCollection:(AVCaptureSynchronizedDataCollection *)synchronizedDataCollection
-{
-    AVCaptureSynchronizedDepthData *pSyncData =
-        (AVCaptureSynchronizedDepthData *)[synchronizedDataCollection synchronizedDataForCaptureOutput:m_pDataOutput];
-    
-    if (pSyncData.depthDataWasDropped)
-        return;
-    
-    AVDepthData *pDepthData = pSyncData.depthData;
-    CVPixelBufferRef pixelBuffer = pDepthData.depthDataMap;
-}
-
-@end
-
 @interface AppDelegate : UIResponder<UIApplicationDelegate>
 {
     UIWindow* m_window;
@@ -374,9 +326,6 @@ didOutputSynchronizedDataCollection:(AVCaptureSynchronizedDataCollection *)synch
 @property (nonatomic, retain) View* m_view;
 
 @end
-
-
-
 
 @implementation AppDelegate
 
@@ -457,7 +406,7 @@ didOutputSynchronizedDataCollection:(AVCaptureSynchronizedDataCollection *)synch
     int maxwidth = 0;
     for (unsigned long fidx = 0; fidx < cnt; fidx++)
     {
-        if (CMFormatDescriptionGetMediaSubType([depthFormats[fidx] formatDescription]) == kCVPixelFormatType_DepthFloat16)
+        if (CMFormatDescriptionGetMediaSubType([depthFormats[fidx] formatDescription]) == kCVPixelFormatType_DepthFloat32)
         {
             int w = CMVideoFormatDescriptionGetDimensions([depthFormats[fidx] formatDescription]).width;
             if (w > maxwidth)
@@ -529,4 +478,40 @@ int main(int _argc, char * _argv[])
     [pool release];
     return exitCode;
 }
+
+@implementation AVDelegate
+
+- (id)initWithDepthOutput:(AVCaptureDepthDataOutput *)pDataOutput
+{
+    self = [super init];
+    m_pDataOutput = pDataOutput;
+    return self;
+}
+
+- (void)dataOutputSynchronizer:(AVCaptureDataOutputSynchronizer *)synchronizer
+didOutputSynchronizedDataCollection:(AVCaptureSynchronizedDataCollection *)synchronizedDataCollection
+{
+    AVCaptureSynchronizedDepthData *pSyncData =
+        (AVCaptureSynchronizedDepthData *)[synchronizedDataCollection synchronizedDataForCaptureOutput:m_pDataOutput];
+    
+    if (pSyncData.depthDataWasDropped)
+        return;
+    
+    AVDepthData *pDepthData = pSyncData.depthData;
+    CVPixelBufferRef pixelBuffer = pDepthData.depthDataMap;
+    size_t width = CVPixelBufferGetWidth(pixelBuffer);
+    size_t height = CVPixelBufferGetHeight(pixelBuffer);
+    if (kCVPixelFormatType_DepthFloat32 == CVPixelBufferGetPixelFormatType(pixelBuffer))
+    {
+        std::vector<float> pixelData(648*480);
+        CVPixelBufferLockBaseAddress(pixelBuffer, kCVPixelBufferLock_ReadOnly);
+        void *pBuffer = CVPixelBufferGetBaseAddress(pixelBuffer);
+        memcpy(pixelData.data(), pBuffer, pixelData.size() * sizeof(float));
+        CVPixelBufferUnlockBaseAddress(pixelBuffer, kCVPixelBufferLock_ReadOnly);
+        entry::s_ctx->m_pApplication->OnDepthBuffer(pixelData);
+    }
+    
+}
+
+@end
 

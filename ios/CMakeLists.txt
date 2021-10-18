@@ -57,6 +57,7 @@ add_executable(${IOSAPPNAME} MACOSX_BUNDLE ${ALL_FILES})
 find_library(FOUNDATIONLIB Foundation)
 find_library(COREFOUNDATIONLIB CoreFoundation)
 find_library(COREMEDIALIB CoreMedia)
+find_library(COREVIDEOLIB CoreVideo)
 find_library(METALLIB Metal)
 find_library(QUARTZCORELIB QuartzCore)
 find_library(METALKITLIB MetalKit)
@@ -72,6 +73,7 @@ set (PLATFORMLIBS
 "${AVFOUNDATION};"
 "${METALLIB};"
 "${COREMEDIALIB};"
+"${COREVIDEOLIB}"
 "${QUARTZCORELIB};"
 "${METALKITLIB};"
 "${UIKITLIB};"
@@ -99,6 +101,7 @@ target_include_directories(${IOSAPPNAME} PUBLIC
 target_link_libraries(${IOSAPPNAME} LINK_PUBLIC
     ${PLATFORMLIBS}
     core
+    mdns
     ${BGFX_LIB}/${CMAKE_STATIC_LIBRARY_PREFIX}bgfx${CMAKE_STATIC_LIBRARY_SUFFIX}
     ${BGFX_LIB}/${CMAKE_STATIC_LIBRARY_PREFIX}astc-codec${CMAKE_STATIC_LIBRARY_SUFFIX}
     ${BGFX_LIB}/${CMAKE_STATIC_LIBRARY_PREFIX}bimg${CMAKE_STATIC_LIBRARY_SUFFIX}

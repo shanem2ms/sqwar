@@ -123,6 +123,11 @@ namespace sam
         imguiEndFrame();
         m_frameIdx = bgfx::frame() + 1;
     }
+
+    void Application::OnDepthBuffer(const std::vector<float> &pixelData)
+    {
+    
+    }
     Application::~Application()
     {
 

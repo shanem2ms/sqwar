@@ -648,7 +648,7 @@ bool update()
 		BX_FREE(g_allocator, apps);
 	}
 
-	int main(int _argc, const char* const* _argv, const char *docPath)
+	sam::Application *main(int _argc, const char* const* _argv, const char *docPath)
 	{
 		//DBG(BX_COMPILER_NAME " / " BX_CPU_NAME " / " BX_ARCH_NAME " / " BX_PLATFORM_NAME);
 
@@ -724,7 +724,7 @@ restart:
 		BX_DELETE(g_allocator, s_fileWriter);
 		s_fileWriter = NULL;
 
-		return result;
+		return &app;
 	}
 
 	WindowState s_window[ENTRY_CONFIG_MAX_WINDOWS];
