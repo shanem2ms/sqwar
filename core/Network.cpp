@@ -61,18 +61,34 @@ namespace sam
         };
 
         DataPacket* m_pCurPacket;
-        size_t bytesReceived = 0;
+        size_t totalPackets = 0;
         void do_read()
         {
             auto self(shared_from_this());
             socket_.async_read_some(asio::buffer(data.data(), max_length),
                 [this, self](std::error_code ec, std::size_t length)
                 {
-                    std::stringstream ss;
-                    ss << "received " << length << " bytes\r\n";
-                    Application::DebugMsg(ss.str());
-                    size_t bytesRemain = length;
-                    bytesReceived += length;
+                    if (m_pCurPacket == nullptr)
+                    {
+                        if (length != sizeof(size_t))
+                            throw;
+                        m_pCurPacket = new DataPacket();
+                        m_pCurPacket->m_totalBytes = *(size_t*)(data.data());
+                        m_pCurPacket->m_bytesRead = 0;
+                    }
+                    else
+                    {
+                        m_pCurPacket->m_bytesRead += length;
+                        if (m_pCurPacket->m_bytesRead ==
+                            m_pCurPacket->m_totalBytes)
+                        {
+                            std::stringstream ss;
+                            ss << "received packet. " << totalPackets++ << "\r\n";
+                            Application::DebugMsg(ss.str());
+                            delete m_pCurPacket;
+                            m_pCurPacket = nullptr;
+                        }
+                    }
                     send_response(1);
                     do_read();
                 });
@@ -185,7 +201,14 @@ namespace sam
         {
             ConnectIfNeeded();
             int64_t bytesRemain = len;
-            size_t chunkSize = 1 << 16;
+            size_t chunkSize = 1 << 16;            
+            {
+                size_t responseCode = 0;
+                asio::error_code ec;
+                asio::write(s, asio::buffer(&len, sizeof(len)));
+                size_t replysize =
+                    s.read_some(asio::buffer(&responseCode, sizeof(responseCode)), ec);
+            }
             while (bytesRemain > 0)
             {
                 size_t sentBytes = min(chunkSize, bytesRemain);
@@ -193,7 +216,6 @@ namespace sam
                 size_t responseCode = 0;
                 asio::error_code ec;
                 std::stringstream ss;
-                ss << "sent " << sentBytes << " bytes\r\n";
                 Application::DebugMsg(ss.str());
                 size_t replysize =
                     s.read_some(asio::buffer(&responseCode, sizeof(responseCode)), ec);
