@@ -28,12 +28,12 @@ namespace detail {
 using boost::throw_exception;
 #else // defined(ASIO_HAS_BOOST_THROW_EXCEPTION)
 
-// Declare the throw_exception function for all targets.
-template <typename Exception>
-void throw_exception(const Exception& e);
+// Declare the throw_exception function for all tar
 
 // Only define the throw_exception function when exceptions are enabled.
-// Otherwise, it is up to the application to provide a definition of this
+// Otherwise, it is up to the applicationgets.
+template <typename Exception>
+void throw_exception(const Exception& e);
 // function.
 # if !defined(ASIO_NO_EXCEPTIONS)
 template <typename Exception>

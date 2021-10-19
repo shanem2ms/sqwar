@@ -22,7 +22,8 @@ namespace sam
         m_touchPos(0, 0),
         m_width(0),
         m_frameIdx(0),
-        m_buttonDown(false)
+        m_buttonDown(false),
+        m_clientInit(false)
     {
         s_pInst = this;
         m_engine = std::make_unique<Engine>();
@@ -84,12 +85,8 @@ namespace sam
         std::string dbPath = m_documentsPath + "/testlvl";
         m_world->Open(dbPath);
         imguiCreate();
-        using namespace std::chrono_literals;
-        std::this_thread::sleep_for(100ms);
-        char* msg = "Hello world";
-        Client c;
-        c.SendData((unsigned char *)msg, strlen(msg));
-
+        m_client = std::make_unique<Client>();
+        m_clientInit = true;
     }
 
     const float Pi = 3.1415297;
@@ -129,9 +126,12 @@ namespace sam
         m_frameIdx = bgfx::frame() + 1;
     }
 
+Client c;
     void Application::OnDepthBuffer(const std::vector<float>& pixelData)
     {
-
+       c.SendData((const unsigned char *)pixelData.data(), pixelData.size() *
+                           sizeof(float));
+        
     }
     Application::~Application()
     {

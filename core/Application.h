@@ -13,6 +13,7 @@ class World;
 class Engine;
 struct DrawContext;
 class Server;
+class Client;
 class Application
 {
     std::unique_ptr<World> m_world;
@@ -25,7 +26,8 @@ class Application
     int m_buttonDown;
     std::string m_documentsPath;
     std::unique_ptr<Server> m_server;
-
+    std::unique_ptr<Client> m_client;
+    bool m_clientInit;
 public:    
     Application();
     ~Application();

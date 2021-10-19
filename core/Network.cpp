@@ -141,8 +141,10 @@ namespace sam
 
     class TcpClient
     {
+        std::string m_ippaddr;
     public:
-        TcpClient()
+        TcpClient(const std::string
+                  &ippaddr) : m_ippaddr(ippaddr)
         {
 
         }
@@ -152,21 +154,18 @@ namespace sam
             asio::io_context io_context;
             tcp::socket s(io_context);
             tcp::resolver resolver(io_context);
-            asio::connect(s, resolver.resolve("192.168.1.40", "13579"));
+            asio::connect(s, resolver.resolve(m_ippaddr, "13579"));
 
+            //asio::write(s, asio::buffer(&len, sizeof(len)));
             asio::write(s, asio::buffer(data, len));
 
-            char reply[max_length];
+            size_t responseCode= 0;
             size_t reply_length = asio::read(s,
-                asio::buffer(reply, len));
-            std::cout << "Reply is: ";
-            std::cout.write(reply, reply_length);
-            std::cout << "\n";
+                asio::buffer(&responseCode, sizeof(responseCode)));
         }
     };
 
-    Client::Client() :
-        m_tcpClient(std::make_unique<TcpClient>())
+    Client::Client()
     {
         struct ipaddr_array iparray;
         send_mdns_query("SqWar", 12, &iparray);
@@ -175,6 +174,8 @@ namespace sam
         {
             ipv4_address_to_string(ipaddr, sizeof(ipaddr), &iparray.addr[idx], sizeof(iparray.addr[idx]));
         }
+        
+        m_tcpClient = std::make_unique<TcpClient>(ipaddr);
     }
 
     bool Client::SendData(const unsigned char* data, size_t len)
