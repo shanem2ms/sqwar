@@ -33,8 +33,10 @@ namespace sam
         : public std::enable_shared_from_this<TcpSession>
     {
     public:
-        TcpSession(tcp::socket socket)
+        TcpSession(tcp::socket socket, 
+            const std::function<void(const std::vector<unsigned char>& data)> &onData)
             : socket_(std::move(socket)),
+            m_onData(onData),
             m_pCurPacket(nullptr),
             data(max_length)
         {
@@ -52,14 +54,13 @@ namespace sam
         }
 
     private:
-            
+          
         struct DataPacket
         {
-            size_t m_totalBytes;
             size_t m_bytesRead;
-            
+            std::vector<unsigned char> data;
         };
-
+        std::function<void(const std::vector<unsigned char>& data)> m_onData;
         DataPacket* m_pCurPacket;
         size_t totalPackets = 0;
         void do_read()
@@ -73,18 +74,21 @@ namespace sam
                         if (length != sizeof(size_t))
                             throw;
                         m_pCurPacket = new DataPacket();
-                        m_pCurPacket->m_totalBytes = *(size_t*)(data.data());
+                        m_pCurPacket->data.resize(*(size_t*)(data.data()));
                         m_pCurPacket->m_bytesRead = 0;
                     }
                     else
                     {
+                        memcpy(m_pCurPacket->data.data() + m_pCurPacket->m_bytesRead,
+                            data.data(), length);
                         m_pCurPacket->m_bytesRead += length;
                         if (m_pCurPacket->m_bytesRead ==
-                            m_pCurPacket->m_totalBytes)
+                            m_pCurPacket->data.size())
                         {
                             std::stringstream ss;
                             ss << "received packet. " << totalPackets++ << "\r\n";
                             Application::DebugMsg(ss.str());
+                            m_onData(m_pCurPacket->data);
                             delete m_pCurPacket;
                             m_pCurPacket = nullptr;
                         }
@@ -114,8 +118,10 @@ namespace sam
     class TcpServer
     {
     public:
-        TcpServer(asio::io_context& io_context, short port)
+        TcpServer(asio::io_context& io_context, short port,
+            const std::function<void(const std::vector<unsigned char>& data)> &onData)
             : acceptor_(io_context, tcp::endpoint(tcp::v4(), port)),
+            m_onData(onData),
             socket_(io_context)
         {
             do_accept();
@@ -129,7 +135,7 @@ namespace sam
                 {
                     if (!ec)
                     {
-                        std::make_shared<TcpSession>(std::move(socket_))->start();
+                        std::make_shared<TcpSession>(std::move(socket_), m_onData)->start();
                     }
 
                     do_accept();
@@ -138,6 +144,7 @@ namespace sam
 
         tcp::acceptor acceptor_;
         tcp::socket socket_;
+        std::function<void(const std::vector<unsigned char>& data)> m_onData;
     };
 
 
@@ -168,7 +175,10 @@ namespace sam
         }
 #endif
         asio::io_context io_context;
-        TcpServer tcpServer(io_context, 13579);
+        TcpServer tcpServer(io_context, 13579, [](
+            const std::vector<unsigned char>& data)
+            {
+            });
         io_context.run();
 
 #ifdef _WIN32
@@ -209,17 +219,19 @@ namespace sam
                 size_t replysize =
                     s.read_some(asio::buffer(&responseCode, sizeof(responseCode)), ec);
             }
+            size_t dataOffset = 0;
             while (bytesRemain > 0)
             {
-                size_t sentBytes = min(chunkSize, bytesRemain);
-                asio::write(s, asio::buffer(data, sentBytes));
+                size_t bytesToSend = min(chunkSize, bytesRemain);
+                asio::write(s, asio::buffer(data + dataOffset, bytesToSend));
                 size_t responseCode = 0;
                 asio::error_code ec;
                 std::stringstream ss;
                 Application::DebugMsg(ss.str());
                 size_t replysize =
                     s.read_some(asio::buffer(&responseCode, sizeof(responseCode)), ec);
-                bytesRemain -= chunkSize;
+                bytesRemain -= bytesToSend;
+                dataOffset += bytesToSend;
             }
         }
     };
