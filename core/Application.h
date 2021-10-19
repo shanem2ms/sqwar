@@ -28,6 +28,8 @@ class Application
     std::unique_ptr<Server> m_server;
     std::unique_ptr<Client> m_client;
     bool m_clientInit;
+    static void (*m_dbgFunc)(const char*);
+
 public:    
     Application();
     ~Application();
@@ -46,6 +48,8 @@ public:
     const std::string &Documents() const
     { return m_documentsPath; }
     void OnDepthBuffer(const std::vector<float> &pixelData);
+    static void SetDebugMsgFunc(void (*dbgfunc)(const char*));
+    static void DebugMsg(const std::string& str);
 };
 
 }

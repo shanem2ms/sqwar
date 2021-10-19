@@ -130,6 +130,10 @@ HWND hWnd;
 bool bgfxInit = false;
 sam::Application app;
 
+void WriteDbgMessage(const char* str)
+{
+    OutputDebugString(str);
+}
 BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
     hInst = hInstance; // Store instance handle in our global variable
@@ -177,6 +181,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
     CHAR my_documents[MAX_PATH];
     HRESULT result = SHGetFolderPath(NULL, CSIDL_PERSONAL, NULL, SHGFP_TYPE_CURRENT, my_documents);
 
+    app.SetDebugMsgFunc(WriteDbgMessage);
     GetCurrentDirectory(MAX_PATH, my_documents);
     app.Initialize(my_documents);
     app.Resize(rect.right, rect.bottom);
@@ -270,6 +275,8 @@ void Tick()
     if (!bgfxInit)
         return;
 
+    std::vector<float> data(640 * 480);
+    app.OnDepthBuffer(data);
     LARGE_INTEGER cur;
     QueryPerformanceCounter(&cur);
 
@@ -324,3 +331,4 @@ LRESULT KeyboardHookproc(
     }
     return CallNextHookEx(nullptr, code, wParam, lParam);
 }
+

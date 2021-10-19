@@ -1,5 +1,6 @@
 #include "StdIncludes.h"
 #include "Network.h"
+#include "Application.h"
 #include "mdns.h"
 #include <thread>
 #include <cstdlib>
@@ -33,8 +34,16 @@ namespace sam
     {
     public:
         TcpSession(tcp::socket socket)
-            : socket_(std::move(socket))
+            : socket_(std::move(socket)),
+            m_pCurPacket(nullptr),
+            data(max_length)
         {
+            Application::DebugMsg("TcpSession");
+        }
+
+        ~TcpSession()
+        {
+            Application::DebugMsg("~TcpSession");
         }
 
         void start()
@@ -43,35 +52,47 @@ namespace sam
         }
 
     private:
+            
+        struct DataPacket
+        {
+            size_t m_totalBytes;
+            size_t m_bytesRead;
+            
+        };
+
+        DataPacket* m_pCurPacket;
+        size_t bytesReceived = 0;
         void do_read()
         {
             auto self(shared_from_this());
-            socket_.async_read_some(asio::buffer(data_, max_length),
+            socket_.async_read_some(asio::buffer(data.data(), max_length),
                 [this, self](std::error_code ec, std::size_t length)
                 {
-                    if (!ec)
-                    {
-                        do_write(length);
-                    }
+                    std::stringstream ss;
+                    ss << "received " << length << " bytes\r\n";
+                    Application::DebugMsg(ss.str());
+                    size_t bytesRemain = length;
+                    bytesReceived += length;
+                    send_response(1);
+                    do_read();
                 });
         }
 
-        void do_write(std::size_t length)
+        void send_response(std::size_t responsecode)
         {
             auto self(shared_from_this());
-            asio::async_write(socket_, asio::buffer(data_, length),
-                [this, self](std::error_code ec, std::size_t /*length*/)
+            char* buf = new char[sizeof(responsecode)];
+            memcpy(buf, &responsecode, sizeof(responsecode));
+            asio::async_write(socket_, asio::buffer(buf, sizeof(responsecode)),
+                [this, self, buf](std::error_code ec, std::size_t /*length*/)
                 {
-                    if (!ec)
-                    {
-                        do_read();
-                    }
+                    delete[]buf;
                 });
         }
 
         tcp::socket socket_;
-        enum { max_length = 1024 };
-        char data_[max_length];
+        enum { max_length = 1 << 16 };
+        std::vector<char> data;
     };
 
     class TcpServer
@@ -142,26 +163,42 @@ namespace sam
     class TcpClient
     {
         std::string m_ippaddr;
+        asio::io_context io_context;
+        tcp::socket s;
     public:
         TcpClient(const std::string
-                  &ippaddr) : m_ippaddr(ippaddr)
+                  &ippaddr) : 
+                    m_ippaddr(ippaddr),
+                    s(io_context)
         {
-
         }
 
+        void ConnectIfNeeded()
+        {
+            if (!s.is_open())
+            {
+                tcp::resolver resolver(io_context);
+                asio::connect(s, resolver.resolve(m_ippaddr, "13579"));
+            }
+        }
         void Send(const unsigned char* data, size_t len)
         {
-            asio::io_context io_context;
-            tcp::socket s(io_context);
-            tcp::resolver resolver(io_context);
-            asio::connect(s, resolver.resolve(m_ippaddr, "13579"));
-
-            //asio::write(s, asio::buffer(&len, sizeof(len)));
-            asio::write(s, asio::buffer(data, len));
-
-            size_t responseCode= 0;
-            size_t reply_length = asio::read(s,
-                asio::buffer(&responseCode, sizeof(responseCode)));
+            ConnectIfNeeded();
+            int64_t bytesRemain = len;
+            size_t chunkSize = 1 << 16;
+            while (bytesRemain > 0)
+            {
+                size_t sentBytes = min(chunkSize, bytesRemain);
+                asio::write(s, asio::buffer(data, sentBytes));
+                size_t responseCode = 0;
+                asio::error_code ec;
+                std::stringstream ss;
+                ss << "sent " << sentBytes << " bytes\r\n";
+                Application::DebugMsg(ss.str());
+                size_t replysize =
+                    s.read_some(asio::buffer(&responseCode, sizeof(responseCode)), ec);
+                bytesRemain -= chunkSize;
+            }
         }
     };
 

@@ -11,6 +11,17 @@
 
 namespace sam
 {
+    void (*Application::m_dbgFunc)(const char*) = nullptr;
+    void Application::SetDebugMsgFunc(void (*dbgfunc)(const char*))
+    {
+        m_dbgFunc = dbgfunc;
+    }
+    void Application::DebugMsg(const std::string& str)
+    {
+        if (m_dbgFunc != nullptr)
+            m_dbgFunc(str.c_str());
+    }
+
 #ifdef SAM_COROUTINES
     co::static_thread_pool g_threadPool(8);
 #endif
