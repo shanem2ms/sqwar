@@ -34,6 +34,8 @@ namespace sam
 
     void Square::Draw(DrawContext& ctx)
     {
+        if (!bgfx::isValid(m_tex))
+            return;
         Cube::init();
         Matrix44f m = ctx.m_mat * CalcMat();
         bgfx::setTransform(m.getData());

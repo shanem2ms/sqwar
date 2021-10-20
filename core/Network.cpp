@@ -208,7 +208,7 @@ namespace sam
         void Send(const unsigned char* data, size_t len)
         {
             ConnectIfNeeded();
-            int64_t bytesRemain = len;
+            
             size_t chunkSize = 1 << 16;            
             {
                 size_t responseCode = 0;
@@ -217,19 +217,20 @@ namespace sam
                 size_t replysize =
                     s.read_some(asio::buffer(&responseCode, sizeof(responseCode)), ec);
             }
-            size_t dataOffset = 0;
+            int64_t bytesRemain = len;
+            const unsigned char *ptr = data;
             while (bytesRemain > 0)
             {
-                size_t bytesToSend = min(chunkSize, bytesRemain);
-                asio::write(s, asio::buffer(data + dataOffset, bytesToSend));
+                size_t sentBytes = std::min<int64_t>(chunkSize, bytesRemain);
+                asio::write(s, asio::buffer(ptr, sentBytes));
                 size_t responseCode = 0;
                 asio::error_code ec;
                 std::stringstream ss;
                 Application::DebugMsg(ss.str());
                 size_t replysize =
                     s.read_some(asio::buffer(&responseCode, sizeof(responseCode)), ec);
-                bytesRemain -= bytesToSend;
-                dataOffset += bytesToSend;
+                bytesRemain -= chunkSize;
+                ptr += chunkSize;
             }
         }
     };
@@ -238,18 +239,22 @@ namespace sam
     {
         struct ipaddr_array iparray;
         send_mdns_query("SqWar", 12, &iparray);
-        char ipaddr[256];
-        for (int idx = 0; idx < iparray.count; ++idx)
+        if (iparray.count > 0)
         {
-            ipv4_address_to_string(ipaddr, sizeof(ipaddr), &iparray.addr[idx], sizeof(iparray.addr[idx]));
+            char ipaddr[256];
+            for (int idx = 0; idx < iparray.count; ++idx)
+            {
+                ipv4_address_to_string(ipaddr, sizeof(ipaddr), &iparray.addr[idx], sizeof(iparray.addr[idx]));
+            }
+            
+            m_tcpClient = std::make_unique<TcpClient>(ipaddr);
         }
-        
-        m_tcpClient = std::make_unique<TcpClient>(ipaddr);
     }
 
     bool Client::SendData(const unsigned char* data, size_t len)
     {
-        m_tcpClient->Send(data, len);
+        if (m_tcpClient != nullptr)
+            m_tcpClient->Send(data, len);
         return true;
     }
 

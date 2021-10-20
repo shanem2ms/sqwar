@@ -503,7 +503,7 @@ didOutputSynchronizedDataCollection:(AVCaptureSynchronizedDataCollection *)synch
     size_t height = CVPixelBufferGetHeight(pixelBuffer);
     if (kCVPixelFormatType_DepthFloat32 == CVPixelBufferGetPixelFormatType(pixelBuffer))
     {
-        std::vector<float> pixelData(648*480);
+        std::vector<float> pixelData(640*480);
         CVPixelBufferLockBaseAddress(pixelBuffer, kCVPixelBufferLock_ReadOnly);
         void *pBuffer = CVPixelBufferGetBaseAddress(pixelBuffer);
         memcpy(pixelData.data(), pBuffer, pixelData.size() * sizeof(float));
