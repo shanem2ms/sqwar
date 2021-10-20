@@ -15,7 +15,7 @@ namespace sam
         bgfxh<bgfx::TextureHandle> m_tex;
     public:
         Square() {}
-        void SetDepthData(const std::vector<unsigned char>& data);
+        void SetDepthData(const unsigned char *data, size_t size);
     protected:
 
         void Initialize(DrawContext& nvg) override;

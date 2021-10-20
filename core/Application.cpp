@@ -142,12 +142,14 @@ namespace sam
         m_frameIdx = bgfx::frame() + 1;
     }
 
-Client c;
+    Client c;
     void Application::OnDepthBuffer(const std::vector<float>& pixelData)
     {
        c.SendData((const unsigned char *)pixelData.data(), pixelData.size() *
                            sizeof(float));
-        
+        if (s_pInst->m_world->GetSquare())
+            s_pInst->m_world->GetSquare()->SetDepthData((const unsigned char *)pixelData.data(), pixelData.size() *
+                                           sizeof(float));
     }
     Application::~Application()
     {

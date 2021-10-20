@@ -47,7 +47,7 @@ public:
     static void SendMDNSQueryThread();
     const std::string &Documents() const
     { return m_documentsPath; }
-    void OnDepthBuffer(const std::vector<float> &pixelData);
+    static void OnDepthBuffer(const std::vector<float> &pixelData);
     static void SetDebugMsgFunc(void (*dbgfunc)(const char*));
     static void DebugMsg(const std::string& str);
 };

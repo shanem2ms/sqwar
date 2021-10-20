@@ -16,12 +16,10 @@ namespace sam
         m_texture = bgfx::createUniform("s_depth", bgfx::UniformType::Sampler); 
     }
 
-    void Square::SetDepthData(const std::vector<unsigned char>& data)
+    void Square::SetDepthData(const unsigned char *data, size_t size)
     {
-        size_t sz = 640 * 480 * 4;
-
-        const bgfx::Memory *m = bgfx::alloc(sz);
-        memcpy(m->data, data.data(), sz);
+        const bgfx::Memory *m = bgfx::alloc(size);
+        memcpy(m->data, data, size);
         m_tex =
             bgfx::createTexture2D(
                 640, 480, false,
