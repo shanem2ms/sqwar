@@ -86,7 +86,7 @@ namespace sam
                             m_pCurPacket->data.size())
                         {
                             std::stringstream ss;
-                            ss << "received packet. " << totalPackets++ << "\r\n";
+                            ss << "received packet. " << totalPackets++ << " " << m_pCurPacket->data.size() << "\r\n";
                             Application::DebugMsg(ss.str());
                             m_onData(m_pCurPacket->data);
                             delete m_pCurPacket;
@@ -149,9 +149,10 @@ namespace sam
 
 
     
-    Server::Server() :
+    Server::Server(const std::function<void(const std::vector<unsigned char>& data)>& onData) :
         m_mdnsThread(MdsnThreadFunc),
-        m_tcpServerThread(TcpThreadFunc)
+        m_tcpServerThread(TcpThreadFunc, this),
+        m_onData(onData)
     {}
 
     void Server::MdsnThreadFunc()
@@ -164,7 +165,7 @@ namespace sam
         m_mdnsThread.join();
     }
 
-    void Server::TcpThreadFunc()
+    void Server::TcpThreadFunc(Server *pServer)
     {
 #ifdef _WIN32
         WORD versionWanted = MAKEWORD(2, 2);
@@ -175,10 +176,7 @@ namespace sam
         }
 #endif
         asio::io_context io_context;
-        TcpServer tcpServer(io_context, 13579, [](
-            const std::vector<unsigned char>& data)
-            {
-            });
+        TcpServer tcpServer(io_context, 13579, pServer->m_onData);
         io_context.run();
 
 #ifdef _WIN32

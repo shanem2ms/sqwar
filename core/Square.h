@@ -11,10 +11,11 @@ namespace sam
     {
         AABoxf GetBounds() const override;
         bgfxh<bgfx::UniformHandle> m_uparams;
-
+        bgfx::UniformHandle m_texture;
+        bgfxh<bgfx::TextureHandle> m_tex;
     public:
-        int m_state;
-        Square() : m_state(0) {}
+        Square() {}
+        void SetDepthData(const std::vector<unsigned char>& data);
     protected:
 
         void Initialize(DrawContext& nvg) override;

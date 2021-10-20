@@ -40,7 +40,12 @@ namespace sam
         m_engine = std::make_unique<Engine>();
         m_world = std::make_unique<World>();
 #ifdef _WIN32
-        m_server = std::make_unique<Server>();
+        m_server = std::make_unique<Server>(
+            [this](const std::vector<unsigned char>& data)
+            {
+                m_world->GetSquare()->SetDepthData(data);
+            }
+            );
 #endif
     }
 

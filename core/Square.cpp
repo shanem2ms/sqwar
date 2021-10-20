@@ -13,7 +13,23 @@ namespace sam
     void Square::Initialize(DrawContext& nvg)
     {
         m_uparams = bgfx::createUniform("u_params", bgfx::UniformType::Vec4, 1);
+        m_texture = bgfx::createUniform("s_depth", bgfx::UniformType::Sampler); 
+    }
 
+    void Square::SetDepthData(const std::vector<unsigned char>& data)
+    {
+        size_t sz = 640 * 480 * 4;
+
+        const bgfx::Memory *m = bgfx::alloc(sz);
+        memcpy(m->data, data.data(), sz);
+        m_tex =
+            bgfx::createTexture2D(
+                640, 480, false,
+                1,
+                bgfx::TextureFormat::Enum::R32F,
+                BGFX_TEXTURE_NONE,
+                m
+            );
     }
 
     void Square::Draw(DrawContext& ctx)
@@ -24,12 +40,9 @@ namespace sam
         // Set vertex and index buffer.
         bgfx::setVertexBuffer(0, Cube::vbh);
         bgfx::setIndexBuffer(Cube::ibh);
-
+        
+        bgfx::setTexture(0, m_texture, m_tex);
         Vec4f color = Vec4f(0.4f, 0.4f, 0.4f, 1);
-        if (m_state == 1)
-            color = Vec4f(1.0f, 0, 0.4f, 1);
-        if (m_state == 2)
-            color = Vec4f(0.0f, 1.0f, 0.4f, 1);
         bgfx::setUniform(m_uparams, &color, 1);
 
         uint64_t state = 0

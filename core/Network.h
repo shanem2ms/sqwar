@@ -5,6 +5,7 @@
 #include <thread>
 #include <vector>
 #include <memory>
+#include <functional>
 #include "gmtl/Vec.h"
 
 namespace sam
@@ -18,12 +19,12 @@ namespace sam
     {
         std::thread m_mdnsThread;
         std::thread m_tcpServerThread;
-       
+        std::function<void(const std::vector<unsigned char>& data)> m_onData;
     public:
-        Server();
+        Server(const std::function<void(const std::vector<unsigned char>& data)>& onData);
         ~Server();
         static void MdsnThreadFunc();
-        static void TcpThreadFunc();
+        static void TcpThreadFunc(Server* pServer);
     };
 
 

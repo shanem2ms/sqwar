@@ -270,13 +270,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     return 0;
 }
 
+//#define SENDFRAMES 1
 void Tick()
 {
     if (!bgfxInit)
         return;
 
+#ifdef SENDFRAMES
     std::vector<float> data(640 * 480);
     app.OnDepthBuffer(data);
+#endif
     LARGE_INTEGER cur;
     QueryPerformanceCounter(&cur);
 

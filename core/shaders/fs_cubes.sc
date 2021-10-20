@@ -1,5 +1,4 @@
 $input v_texcoord0, v_normal
-
 /*
  * Copyright 2011-2021 Branimir Karadzic. All rights reserved.
  * License: https://github.com/bkaradzic/bgfx#license-bsd-2-clause
@@ -7,6 +6,7 @@ $input v_texcoord0, v_normal
 
 #include "uniforms.sh"
 #include <bgfx_shader.sh>
+SAMPLER2D(s_depth, 0);
 
 void main()
 {
@@ -17,6 +17,7 @@ void main()
 	float diffuse = abs(dot(lightdir, v_normal));
 	//if (xv > 0.02 && yv > 0.02)
 	//	discard;
-	gl_FragColor.rgb = vec3(u_params[0].xyz) * (diffuse * 0.8 + 0.2);
+	gl_FragColor.r = texture2D(s_depth, v_texcoord0);
+	gl_FragColor.gb = v_texcoord0.xy;
 	gl_FragColor.a = 1;
 } 

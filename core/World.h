@@ -13,66 +13,22 @@ namespace sam
     class Touch;
     class TargetCube;
 
-    static const int boardSize = 16;
-    class BoardState
-    {
-    private:
-        char s[boardSize * boardSize];
-        int score;
-    public:
-        BoardState() :
-            score(0)
-        {
-            memset(s, 0, sizeof(s));
-        }
-
-        inline char Raw(int idx) const
-        {
-            return s[idx];
-        }
-
-        inline void SA(int x, int y, int playerIdx)
-        {
-            if (playerIdx == 0)
-            {
-                s[y * boardSize + x] = 1;
-                score++;
-            }
-            if (playerIdx == 1)
-            {
-                s[x * boardSize + y] = 2;
-                score--;
-            }
-        }
-
-        inline char S(int x, int y, int playerIdx) const
-        {
-            return playerIdx == 0 ? s[y * boardSize + x] :
-                s[x * boardSize + y];
-        }
-
-        int Score()
-        {
-            return score;
-        }
-    };
-    
     class World
     {
     private:
 
         int m_width;
         int m_height;
-        bool m_boardDirty;
 
         std::shared_ptr<SceneGroup> m_worldGroup;
         std::shared_ptr<Touch> m_activeTouch;
         int m_currentTool;
-        bgfx::ProgramHandle m_shader;        
-        std::vector<std::shared_ptr<Square>> m_squares;
-        int m_playerTurn;
-        BoardState m_board;
+        bgfx::ProgramHandle m_shader;     
+        std::shared_ptr<Square> m_square;
     public:
+
+        const std::shared_ptr<Square> GetSquare() const
+        { return m_square; }
 
         void Layout(int w, int h);
         World();
@@ -84,8 +40,6 @@ namespace sam
         void KeyDown(int k);
         void KeyUp(int k);
         void Open(const std::string &path);
-        static bool PlayerTakeSquare(BoardState& state, int playerIdx, int sqx, int sqy);
-        static int FindOptimalSquare(const BoardState& state, int playerIdx, int &sqx, int &sqy, int level);
     };
 
 }
