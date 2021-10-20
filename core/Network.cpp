@@ -71,13 +71,13 @@ namespace sam
                 {
                     if (m_pCurPacket == nullptr)
                     {
-                        if (length != sizeof(size_t))
-                            throw;
                         m_pCurPacket = new DataPacket();
                         m_pCurPacket->data.resize(*(size_t*)(data.data()));
                         m_pCurPacket->m_bytesRead = 0;
+                        length -= sizeof(size_t);
                     }
-                    else
+                    
+                    if (length > 0)
                     {
                         memcpy(m_pCurPacket->data.data() + m_pCurPacket->m_bytesRead,
                             data.data(), length);
@@ -86,7 +86,6 @@ namespace sam
                             m_pCurPacket->data.size())
                         {
                             std::stringstream ss;
-                            ss << "received packet. " << totalPackets++ << " " << m_pCurPacket->data.size() << "\r\n";
                             Application::DebugMsg(ss.str());
                             m_onData(m_pCurPacket->data);
                             delete m_pCurPacket;
@@ -205,30 +204,37 @@ namespace sam
                 asio::connect(s, resolver.resolve(m_ippaddr, "13579"));
             }
         }
+
+        inline void AsyncSend(asio::ip::tcp::socket& s, const unsigned char* data, size_t len)
+        {
+            unsigned char* pdata = new unsigned char[len];
+            memcpy(pdata, data, len);
+            asio::async_write(s, asio::buffer(data, len),
+                [&s, pdata](std::error_code ec, std::size_t /*length*/)
+                {
+                    size_t responseCode = 0;
+                    size_t replysize =
+                        s.read_some(asio::buffer(&responseCode, sizeof(responseCode)), ec);
+                    delete[]pdata;
+                });
+        }
+
         void Send(const unsigned char* data, size_t len)
         {
             ConnectIfNeeded();
             
             size_t chunkSize = 1 << 16;            
             {
-                size_t responseCode = 0;
-                asio::error_code ec;
-                asio::write(s, asio::buffer(&len, sizeof(len)));
-                size_t replysize =
-                    s.read_some(asio::buffer(&responseCode, sizeof(responseCode)), ec);
+                AsyncSend(s, (const unsigned char *)&len, sizeof(len));
             }
             int64_t bytesRemain = len;
             const unsigned char *ptr = data;
             while (bytesRemain > 0)
             {
                 size_t sentBytes = std::min<int64_t>(chunkSize, bytesRemain);
-                asio::write(s, asio::buffer(ptr, sentBytes));
-                size_t responseCode = 0;
-                asio::error_code ec;
+                AsyncSend(s, ptr, sentBytes);
                 std::stringstream ss;
                 Application::DebugMsg(ss.str());
-                size_t replysize =
-                    s.read_some(asio::buffer(&responseCode, sizeof(responseCode)), ec);
                 bytesRemain -= chunkSize;
                 ptr += chunkSize;
             }

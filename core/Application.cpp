@@ -43,7 +43,8 @@ namespace sam
         m_server = std::make_unique<Server>(
             [this](const std::vector<unsigned char>& data)
             {
-                m_world->GetSquare()->SetDepthData(data);
+                if (m_world->GetSquare())
+                    m_world->GetSquare()->SetDepthData(data.data(), data.size());
             }
             );
 #endif

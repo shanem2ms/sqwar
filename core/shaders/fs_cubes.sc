@@ -17,7 +17,7 @@ void main()
 	float diffuse = abs(dot(lightdir, v_normal));
 	//if (xv > 0.02 && yv > 0.02)
 	//	discard;
-	gl_FragColor.r = texture2D(s_depth, v_texcoord0);
+	gl_FragColor.r = texture2D(s_depth, v_texcoord0.yx);
 	gl_FragColor.gb = v_texcoord0.xy;
 	gl_FragColor.a = 1;
 } 
