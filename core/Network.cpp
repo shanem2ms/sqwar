@@ -221,7 +221,7 @@ namespace sam
         {
             ConnectIfNeeded();
 
-            size_t chunkSize = 1 << 20;
+            size_t chunkSize = 1 << 16;
             {
                 size_t responseCode = 0;
                 asio::error_code ec;

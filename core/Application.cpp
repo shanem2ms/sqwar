@@ -6,7 +6,9 @@
 #include "Network.h"
 #include "imgui.h"
 #include <thread>
-//#include 
+#include <iostream>
+#include <fstream>
+//#include
 
 
 namespace sam
@@ -143,11 +145,21 @@ namespace sam
         m_frameIdx = bgfx::frame() + 1;
     }
 
+    void Application::WriteDepthDataToFile(const std::vector<float> &pixelData)
+    {
+        static std::fstream fs;
+        if (!fs.is_open())
+            fs = std::fstream(m_documentsPath + "/file.binary", std::ios::out | std::ios::binary);
+        fs.write((const char *)pixelData.data(), pixelData.size() * sizeof(float));
+        fs.flush();
+    }
+    
     Client c;
     void Application::OnDepthBuffer(const std::vector<float>& pixelData)
     {
        c.SendData((const unsigned char *)pixelData.data(), pixelData.size() *
                            sizeof(float));
+        s_pInst->WriteDepthDataToFile(pixelData);
         if (s_pInst->m_world->GetSquare())
             s_pInst->m_world->GetSquare()->SetDepthData((const unsigned char *)pixelData.data(), pixelData.size() *
                                            sizeof(float));
