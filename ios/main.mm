@@ -498,15 +498,28 @@ didOutputSynchronizedDataCollection:(AVCaptureSynchronizedDataCollection *)synch
         return;
     
     AVDepthData *pDepthData = pSyncData.depthData;
+    AVCameraCalibrationData *cameraCalibrationData =
+        [pDepthData cameraCalibrationData];
+    matrix_float3x3 cameraMatrix = [cameraCalibrationData intrinsicMatrix];
+    float mtxarray[11];
+    for (int i = 0; i < 9; ++i)
+    {
+        mtxarray[i] = cameraMatrix.columns[i/3][i%3];
+    }
+    
+    CGSize size = [cameraCalibrationData intrinsicMatrixReferenceDimensions];
+    mtxarray[9] = size.width;
+    mtxarray[10] = size.height;
     CVPixelBufferRef pixelBuffer = pDepthData.depthDataMap;
     size_t width = CVPixelBufferGetWidth(pixelBuffer);
     size_t height = CVPixelBufferGetHeight(pixelBuffer);
     if (kCVPixelFormatType_DepthFloat32 == CVPixelBufferGetPixelFormatType(pixelBuffer))
     {
-        std::vector<float> pixelData(640*480);
+        std::vector<float> pixelData(640*480 + 16);
+        memcpy(pixelData.data(), mtxarray, sizeof(mtxarray));
         CVPixelBufferLockBaseAddress(pixelBuffer, kCVPixelBufferLock_ReadOnly);
         void *pBuffer = CVPixelBufferGetBaseAddress(pixelBuffer);
-        memcpy(pixelData.data(), pBuffer, pixelData.size() * sizeof(float));
+        memcpy(pixelData.data() + 16, pBuffer, pixelData.size() * sizeof(float));
         CVPixelBufferUnlockBaseAddress(pixelBuffer, kCVPixelBufferLock_ReadOnly);
         entry::s_ctx->m_pApplication->OnDepthBuffer(pixelData);
     }

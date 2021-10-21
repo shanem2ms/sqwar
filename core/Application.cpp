@@ -161,8 +161,7 @@ namespace sam
                            sizeof(float));
         s_pInst->WriteDepthDataToFile(pixelData);
         if (s_pInst->m_world->GetSquare())
-            s_pInst->m_world->GetSquare()->SetDepthData((const unsigned char *)pixelData.data(), pixelData.size() *
-                                           sizeof(float));
+            s_pInst->m_world->GetSquare()->SetDepthData((const unsigned char *)(pixelData.data() + 16), (pixelData.size() - 16) * sizeof(float));
     }
     Application::~Application()
     {
