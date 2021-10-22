@@ -145,21 +145,22 @@ namespace sam
         m_frameIdx = bgfx::frame() + 1;
     }
 
-    void Application::WriteDepthDataToFile(const std::vector<float> &pixelData)
+    void Application::WriteDepthDataToFile(const std::vector<unsigned char> &vidData, const std::vector<float> &pixelData)
     {
         static std::fstream fs;
         if (!fs.is_open())
             fs = std::fstream(m_documentsPath + "/file.binary", std::ios::out | std::ios::binary);
+        fs.write((const char *)vidData.data(), vidData.size());
         fs.write((const char *)pixelData.data(), pixelData.size() * sizeof(float));
         fs.flush();
     }
     
     Client c;
-    void Application::OnDepthBuffer(const std::vector<float>& pixelData)
+    void Application::OnDepthBuffer(const std::vector<unsigned char> &vidData, const std::vector<float>& pixelData)
     {
        c.SendData((const unsigned char *)pixelData.data(), pixelData.size() *
                            sizeof(float));
-        s_pInst->WriteDepthDataToFile(pixelData);
+        s_pInst->WriteDepthDataToFile(vidData, pixelData);
         if (s_pInst->m_world->GetSquare())
             s_pInst->m_world->GetSquare()->SetDepthData((const unsigned char *)(pixelData.data() + 16), (pixelData.size() - 16) * sizeof(float));
     }

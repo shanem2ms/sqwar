@@ -306,8 +306,10 @@ static    void* m_device = NULL;
 
 @interface AVDelegate : NSObject<AVCaptureDataOutputSynchronizerDelegate>
 {
-    AVCaptureDepthDataOutput *m_pDataOutput;
+    AVCaptureDepthDataOutput *m_pDepthOutput;
+    AVCaptureVideoDataOutput *m_pVideoOutput;
 }
+- (id)initWithDepthOutput:(AVCaptureDepthDataOutput *)pDataOutput withVideo:(AVCaptureVideoDataOutput *)pVideoOutput;
 @end
 
 @interface AppDelegate : UIResponder<UIApplicationDelegate>
@@ -317,7 +319,8 @@ static    void* m_device = NULL;
     dispatch_queue_t m_sessionQueue;
     dispatch_queue_t m_dataQueue;
     AVCaptureSession *m_pSession;
-    AVCaptureDepthDataOutput *m_pDataOutput;
+    AVCaptureDepthDataOutput *m_pDepthOutput;
+    AVCaptureVideoDataOutput *m_pVideoOutput;
     AVDelegate *m_pAVDelegate;
     
 }
@@ -360,7 +363,8 @@ static    void* m_device = NULL;
     m_sessionQueue =
         dispatch_queue_create("sessionqueue", nullptr);
     m_pSession = [[AVCaptureSession alloc] init];
-    m_pDataOutput = [[AVCaptureDepthDataOutput alloc] init];
+    m_pDepthOutput = [[AVCaptureDepthDataOutput alloc] init];
+    m_pVideoOutput = [[AVCaptureVideoDataOutput alloc] init];
     [AVCaptureDevice requestAccessForMediaType:AVMediaTypeVideo  completionHandler:^(BOOL granted) {
         if (granted) {
             //self.microphoneConsentState = PrivacyConsentStateGranted;
@@ -396,10 +400,15 @@ static    void* m_device = NULL;
     [m_pSession beginConfiguration];
     [m_pSession setSessionPreset:AVCaptureSessionPreset640x480];
     [m_pSession addInput:pInput];
-    [m_pSession addOutput:m_pDataOutput];
-    [m_pDataOutput setFilteringEnabled:true];
-    AVCaptureConnection *pConnection = [m_pDataOutput connectionWithMediaType:AVMediaTypeDepthData];
-    [pConnection setEnabled:true];
+    [m_pSession addOutput:m_pDepthOutput];
+    [m_pSession addOutput:m_pVideoOutput];
+    //videoDataOutput.videoSettings = [kCVPixelBufferPixelFormatTypeKey as String: Int(kCVPixelFormatType_32BGRA)]
+    NSDictionary *rgbOutputSettings = [NSDictionary dictionaryWithObject:
+     [NSNumber numberWithInt:kCMPixelFormat_32BGRA] forKey:(id)kCVPixelBufferPixelFormatTypeKey];
+    [m_pVideoOutput setVideoSettings:rgbOutputSettings];
+    [m_pDepthOutput setFilteringEnabled:true];
+    AVCaptureConnection *pDepthConnection = [m_pDepthOutput connectionWithMediaType:AVMediaTypeDepthData];
+    [pDepthConnection setEnabled:true];
     NSArray<AVCaptureDeviceFormat *> *depthFormats = [[pDevice activeFormat] supportedDepthDataFormats];
     unsigned long cnt = [depthFormats count];
     unsigned long foundIdx = -1;
@@ -421,9 +430,9 @@ static    void* m_device = NULL;
     [pDevice setActiveDepthDataFormat:depthFormats[foundIdx]];
     [pDevice unlockForConfiguration];
     AVCaptureDataOutputSynchronizer *pOutputSyncronizer =
-        [[AVCaptureDataOutputSynchronizer alloc] initWithDataOutputs:@[m_pDataOutput]];
+        [[AVCaptureDataOutputSynchronizer alloc] initWithDataOutputs:@[m_pDepthOutput, m_pVideoOutput]];
     
-    m_pAVDelegate = [[AVDelegate alloc] initWithDepthOutput:m_pDataOutput];
+    m_pAVDelegate = [[AVDelegate alloc] initWithDepthOutput:m_pDepthOutput withVideo:m_pVideoOutput];
     [pOutputSyncronizer setDelegate:m_pAVDelegate queue:m_dataQueue];
     [m_pSession commitConfiguration];
     
@@ -481,21 +490,27 @@ int main(int _argc, char * _argv[])
 
 @implementation AVDelegate
 
-- (id)initWithDepthOutput:(AVCaptureDepthDataOutput *)pDataOutput
+- (id)initWithDepthOutput:(AVCaptureDepthDataOutput *)pDataOutput withVideo:(AVCaptureVideoDataOutput *)pVideoOutput
 {
     self = [super init];
-    m_pDataOutput = pDataOutput;
+    m_pDepthOutput = pDataOutput;
+    m_pVideoOutput = pVideoOutput;
     return self;
 }
 
 - (void)dataOutputSynchronizer:(AVCaptureDataOutputSynchronizer *)synchronizer
 didOutputSynchronizedDataCollection:(AVCaptureSynchronizedDataCollection *)synchronizedDataCollection
 {
+    AVCaptureSynchronizedSampleBufferData *pVidSync =
+        (AVCaptureSynchronizedSampleBufferData *)[synchronizedDataCollection synchronizedDataForCaptureOutput:m_pVideoOutput];
     AVCaptureSynchronizedDepthData *pSyncData =
-        (AVCaptureSynchronizedDepthData *)[synchronizedDataCollection synchronizedDataForCaptureOutput:m_pDataOutput];
-    
-    if (pSyncData.depthDataWasDropped)
+        (AVCaptureSynchronizedDepthData *)[synchronizedDataCollection synchronizedDataForCaptureOutput:m_pDepthOutput];
+    if (pSyncData.depthDataWasDropped || pVidSync.sampleBufferWasDropped)
         return;
+    
+    CMSampleBufferRef sbufferref = pVidSync.sampleBuffer;
+    CVImageBufferRef imgbufref = CMSampleBufferGetImageBuffer(sbufferref);
+    CMFormatDescriptionRef fmtref = CMSampleBufferGetFormatDescription(sbufferref);
     
     AVDepthData *pDepthData = pSyncData.depthData;
     AVCameraCalibrationData *cameraCalibrationData =
@@ -516,12 +531,18 @@ didOutputSynchronizedDataCollection:(AVCaptureSynchronizedDataCollection *)synch
     if (kCVPixelFormatType_DepthFloat32 == CVPixelBufferGetPixelFormatType(pixelBuffer))
     {
         std::vector<float> pixelData(640*480 + 16);
+        std::vector<unsigned char> vidData(640*480*4);
         memcpy(pixelData.data(), mtxarray, sizeof(mtxarray));
         CVPixelBufferLockBaseAddress(pixelBuffer, kCVPixelBufferLock_ReadOnly);
         void *pBuffer = CVPixelBufferGetBaseAddress(pixelBuffer);
         memcpy(pixelData.data() + 16, pBuffer, pixelData.size() * sizeof(float));
         CVPixelBufferUnlockBaseAddress(pixelBuffer, kCVPixelBufferLock_ReadOnly);
-        entry::s_ctx->m_pApplication->OnDepthBuffer(pixelData);
+        CVPixelBufferLockBaseAddress(imgbufref, kCVPixelBufferLock_ReadOnly);
+        size_t datasize = CVPixelBufferGetDataSize(imgbufref);
+        void *pVidBuffer = CVPixelBufferGetBaseAddress(imgbufref);
+        memcpy(vidData.data(), pVidBuffer, vidData.size());
+        CVPixelBufferUnlockBaseAddress(imgbufref, kCVPixelBufferLock_ReadOnly);
+        entry::s_ctx->m_pApplication->OnDepthBuffer(vidData, pixelData);
     }
     
 }
