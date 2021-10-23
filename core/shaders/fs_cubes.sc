@@ -6,8 +6,6 @@ $input v_texcoord0, v_normal
 
 #include "uniforms.sh"
 #include <bgfx_shader.sh>
-SAMPLER2D(s_depth, 0);
-SAMPLER2D(s_vid, 1);
 
 void main()
 {
@@ -19,8 +17,8 @@ void main()
 	//if (xv > 0.02 && yv > 0.02)
 	//	discard;
 	//vec4 vd = texture2D(s_vid, v_texcoord0.yx);
-	gl_FragColor.r = texture2D(s_depth, v_texcoord0.yx);
+	//gl_FragColor.r = texture2D(s_depth, v_texcoord0.yx);
+	gl_FragColor.r = 1;
 	gl_FragColor.gb = vec2(0.2,0.2);
-
 	gl_FragColor.a = 1;
 } 

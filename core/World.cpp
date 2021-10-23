@@ -185,7 +185,6 @@ namespace sam
         }
 
         {
-            //e.Cam().SetPerspectiveMatrix(0.1f, 35);
             Camera::Fly la = e.Cam().GetFly();
             la.pos += g_vel;
             e.Cam().SetFly(la);

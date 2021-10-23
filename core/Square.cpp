@@ -22,11 +22,22 @@ namespace sam
     {
         std::vector<gmtl::Vec3f> pts;
         GetDepthPoints(depthData, pts, 640, 480);
-        m_voxelinst = std::make_shared<VoxCube>();
-        m_voxelinst->Create(pts);
+        m_ptsmtx.lock();
+        std::swap(m_pts, pts);
+        m_ptsmtx.unlock();
+    }
 
+    void Square::Draw(DrawContext& ctx)
+    {
+        if (m_pts.size() == 0)
+            return;
+        m_voxelinst = std::make_shared<VoxCube>();
+        m_ptsmtx.lock();
+        m_voxelinst->Create(m_pts);
+        m_ptsmtx.unlock();
+        /*
         size_t dsize = (depthData.size() - 16) * sizeof(float);
-        const bgfx::Memory *m = bgfx::alloc(dsize);
+        const bgfx::Memory* m = bgfx::alloc(dsize);
         memcpy(m->data, depthData.data() + 16, dsize);
         m_depthtex =
             bgfx::createTexture2D(
@@ -46,12 +57,9 @@ namespace sam
                 BGFX_TEXTURE_NONE,
                 mv
             );
-    }
-
-    void Square::Draw(DrawContext& ctx)
-    {
+            
         if (!bgfx::isValid(m_depthtex) || !bgfx::isValid(m_vidtex))
-            return;
+            return;*/
         Cube::init();
         Matrix44f m = ctx.m_mat * CalcMat();
         bgfx::setTransform(m.getData());
@@ -59,8 +67,8 @@ namespace sam
         bgfx::setVertexBuffer(0, Cube::vbh);
         bgfx::setIndexBuffer(Cube::ibh);
         
-        bgfx::setTexture(0, m_dtexture, m_depthtex);
-        bgfx::setTexture(1, m_vtexture, m_vidtex);
+        //bgfx::setTexture(0, m_dtexture, m_depthtex);
+        //bgfx::setTexture(1, m_vtexture, m_vidtex);
         Vec4f color = Vec4f(0.4f, 0.4f, 0.4f, 1);
         bgfx::setUniform(m_uparams, &color, 1);
         m_voxelinst->Use();
