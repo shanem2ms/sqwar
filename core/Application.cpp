@@ -45,8 +45,9 @@ namespace sam
         m_server = std::make_unique<Server>(
             [this](const std::vector<unsigned char>& data)
             {
-                if (m_world->GetSquare())
-                    m_world->GetSquare()->SetDepthData(data.data(), data.size());
+                //if (m_world->GetSquare())
+                //    m_world->GetSquare()->SetDepthData(data.data(), data.size(),
+                ///        std::vector<float>());
             }
             );
 #endif
@@ -155,14 +156,17 @@ namespace sam
         fs.flush();
     }
     
-    Client c;
-    void Application::OnDepthBuffer(const std::vector<unsigned char> &vidData, const std::vector<float>& pixelData)
+    void Application::OnDepthBuffer(const std::vector<unsigned char> &vidData, const std::vector<float>& depthData)
     {
-       c.SendData((const unsigned char *)pixelData.data(), pixelData.size() *
+#ifndef _WIN32
+        static Client c;
+        c.SendData((const unsigned char *)pixelData.data(), pixelData.size() *
                            sizeof(float));
         s_pInst->WriteDepthDataToFile(vidData, pixelData);
+#endif
         if (s_pInst->m_world->GetSquare())
-            s_pInst->m_world->GetSquare()->SetDepthData((const unsigned char *)(pixelData.data() + 16), (pixelData.size() - 16) * sizeof(float));
+            s_pInst->m_world->GetSquare()->SetDepthData(
+                vidData.data(), vidData.size(), depthData);
     }
     Application::~Application()
     {

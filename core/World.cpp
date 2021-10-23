@@ -91,6 +91,7 @@ namespace sam
             m_activeTouch->SetDragPos(Point2f(xb, yb));
 
             Vec2f dragDiff = Point2f(xb, yb) - m_activeTouch->TouchPos();
+            
         }
     }
 
@@ -109,25 +110,32 @@ namespace sam
     bool isPaused = false;
 
     int g_maxTileLod = 9;
+    Vec3f g_vel;
     void World::KeyDown(int k)
     {
-        float speed = 0.1f;
+        float speed = 0.01f;
         switch (k)
         {
         case 'P':
             isPaused = !isPaused;
             break;
         case LeftShift:
+            g_vel[1] -= speed;
             break;
         case SpaceBar:
+            g_vel[1] += speed;
             break;
         case AButton:
+            g_vel[0] -= speed;
             break;
         case DButton:
+            g_vel[0] += speed;
             break;
         case WButton:
+            g_vel[2] -= speed;
             break;
         case SButton:
+            g_vel[2] += speed;
             break;
         case FButton:
             break;
@@ -144,12 +152,15 @@ namespace sam
         {
         case LeftShift:
         case SpaceBar:
+            g_vel[1] = 0;
             break;
         case AButton:
         case DButton:
+            g_vel[0] = 0;
             break;
         case WButton:
         case SButton:
+            g_vel[2] = 0;
             break;
         }
     }
@@ -165,12 +176,20 @@ namespace sam
             m_worldGroup->BeforeDraw([this](DrawContext& ctx) { ctx.m_pgm = m_shader; return true; });
 
             m_square = std::make_shared<Square>();
-            m_square->SetScale(Vec3f(8, 8, 8));
+            float scl = 1.0f;
+            m_square->SetScale(Vec3f(scl, scl, scl));
             m_worldGroup->AddItem(m_square);
+            Camera::Fly la = e.Cam().GetFly();
+            la.pos[2] = -0.02f;
+            e.Cam().SetFly(la);
         }
 
-        e.Cam().SetOrthoMatrix(10);
-        Camera::Fly la = e.Cam().GetFly();
+        {
+            //e.Cam().SetPerspectiveMatrix(0.1f, 35);
+            Camera::Fly la = e.Cam().GetFly();
+            la.pos += g_vel;
+            e.Cam().SetFly(la);
+        }
     }
 
     void World::Layout(int w, int h)

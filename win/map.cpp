@@ -17,6 +17,7 @@
 #include "Application.h"
 #include <string>
 #include <vector>
+#include <fstream>
 
 #define MAX_LOADSTRING 100
 
@@ -270,15 +271,28 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     return 0;
 }
 
-//#define SENDFRAMES 1
+#define SENDFRAMES 1
+
 void Tick()
 {
     if (!bgfxInit)
         return;
 
 #ifdef SENDFRAMES
-    std::vector<float> data(640 * 480);
-    app.OnDepthBuffer(data);
+    static std::fstream s_binfile;
+    if (!s_binfile.is_open())
+        s_binfile = std::fstream("C:\\homep4\\\sqwar\\file.binary", std::ios::binary | std::ios::in);
+
+    std::vector<unsigned char> viddata(640 * 480 * 4);
+    std::vector<float> data(640 * 480 + 16);
+    s_binfile.read((char*)viddata.data(), viddata.size());
+    s_binfile.read((char*)data.data(), data.size() * sizeof(float));
+    if (s_binfile.eof())
+    {
+        s_binfile.clear();
+        s_binfile.seekg(0, s_binfile.beg);
+    }
+    app.OnDepthBuffer(viddata, data);
 #endif
     LARGE_INTEGER cur;
     QueryPerformanceCounter(&cur);

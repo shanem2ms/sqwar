@@ -27,6 +27,7 @@ namespace cppcoro
 
 namespace co = cppcoro; 
 #endif
+constexpr float pi = 3.14159265358979323846f;
 
 template <class T> class bgfxh
 {

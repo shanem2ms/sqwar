@@ -52,6 +52,7 @@ namespace sam
             0
         );
         gmtl::Matrix44f proj0 = Cam().ProjectionMatrix();
+
         bgfx::setViewTransform(0, view.getData(), proj0.getData());
         dc.m_curviewIdx = 0;
         dc.m_nearfarpassIdx = 0;

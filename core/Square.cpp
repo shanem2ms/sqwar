@@ -1,5 +1,6 @@
 #include "StdIncludes.h"
 #include "Square.h"
+#include "DepthPts.h"
 #include "Mesh.h"
 
 namespace sam
@@ -13,14 +14,21 @@ namespace sam
     void Square::Initialize(DrawContext& nvg)
     {
         m_uparams = bgfx::createUniform("u_params", bgfx::UniformType::Vec4, 1);
-        m_texture = bgfx::createUniform("s_depth", bgfx::UniformType::Sampler); 
+        m_vtexture = bgfx::createUniform("s_vid", bgfx::UniformType::Sampler);
+        m_dtexture = bgfx::createUniform("s_depth", bgfx::UniformType::Sampler);
     }
 
-    void Square::SetDepthData(const unsigned char *data, size_t size)
+    void Square::SetDepthData(const unsigned char* vdata, size_t vsize, const std::vector<float> &depthData)
     {
-        const bgfx::Memory *m = bgfx::alloc(size);
-        memcpy(m->data, data, size);
-        m_tex =
+        std::vector<gmtl::Vec3f> pts;
+        GetDepthPoints(depthData, pts, 640, 480);
+        m_voxelinst = std::make_shared<VoxCube>();
+        m_voxelinst->Create(pts);
+
+        size_t dsize = (depthData.size() - 16) * sizeof(float);
+        const bgfx::Memory *m = bgfx::alloc(dsize);
+        memcpy(m->data, depthData.data() + 16, dsize);
+        m_depthtex =
             bgfx::createTexture2D(
                 640, 480, false,
                 1,
@@ -28,11 +36,21 @@ namespace sam
                 BGFX_TEXTURE_NONE,
                 m
             );
+        const bgfx::Memory* mv = bgfx::alloc(vsize);
+        memcpy(mv->data, vdata, vsize);
+        m_vidtex =
+            bgfx::createTexture2D(
+                640, 480, false,
+                1,
+                bgfx::TextureFormat::Enum::RGBA8,
+                BGFX_TEXTURE_NONE,
+                mv
+            );
     }
 
     void Square::Draw(DrawContext& ctx)
     {
-        if (!bgfx::isValid(m_tex))
+        if (!bgfx::isValid(m_depthtex) || !bgfx::isValid(m_vidtex))
             return;
         Cube::init();
         Matrix44f m = ctx.m_mat * CalcMat();
@@ -41,9 +59,12 @@ namespace sam
         bgfx::setVertexBuffer(0, Cube::vbh);
         bgfx::setIndexBuffer(Cube::ibh);
         
-        bgfx::setTexture(0, m_texture, m_tex);
+        bgfx::setTexture(0, m_dtexture, m_depthtex);
+        bgfx::setTexture(1, m_vtexture, m_vidtex);
         Vec4f color = Vec4f(0.4f, 0.4f, 0.4f, 1);
         bgfx::setUniform(m_uparams, &color, 1);
+        m_voxelinst->Use();
+        bgfx::setInstanceDataBuffer(m_voxelinst->vbh, 0, m_voxelinst->verticesSize);
 
         uint64_t state = 0
             | BGFX_STATE_WRITE_RGB

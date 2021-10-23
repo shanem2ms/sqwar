@@ -3,6 +3,7 @@
 
 bgfx::VertexLayout PosTexcoordVertex::ms_layout;
 bgfx::VertexLayout PosTexcoordNrmVertex::ms_layout;
+bgfx::VertexLayout VoxelVertex::ms_layout;
 
 bool Cube::isInit = false;
 bgfx::VertexBufferHandle Cube::vbh;
@@ -156,3 +157,43 @@ void CubeList::Create(const std::vector<Vec3f>& pts, float cubeSize)
     );    
 }
 
+
+
+void VoxCube::Create(const std::vector<Vec3f>& pts)
+{
+    VoxelVertex::init();
+    verticesSize = pts.size();
+    pvertices = new VoxelVertex[verticesSize];
+    VoxelVertex* pdata = pvertices;
+    for (const Vec3f& pt : pts)
+    {
+        VoxelVertex vtx = { pt[0], pt[1], pt[2], 0 };
+        *pdata++ = vtx;
+    }
+
+    memsize = verticesSize * sizeof(VoxelVertex);
+}
+
+
+void VoxCube::Use()
+{
+    if (!bgfx::isValid(vbh))
+    {
+        //vbh = bgfx::createynamicVertexBuffer(verticesSize, VoxelVertex::ms_layout, BGFX_BUFFER_COMPUTE_WRITE);
+        vbh = bgfx::createVertexBuffer(
+            bgfx::makeRef(pvertices, verticesSize * sizeof(VoxelVertex), VoxCube::ReleaseFn)
+            , VoxelVertex::ms_layout
+        );
+
+    }
+}
+
+VoxCube::~VoxCube()
+{
+}
+
+void VoxCube::ReleaseFn(void* ptr, void* pThis)
+{
+    delete[]ptr;
+
+}

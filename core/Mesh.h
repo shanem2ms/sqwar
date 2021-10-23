@@ -196,3 +196,48 @@ struct Quad
     static bgfx::IndexBufferHandle ibh;
     static bool isInit;
 };
+
+struct VoxelVertex
+{
+    float x;
+    float y;
+    float z;
+    float d;
+
+    static void init()
+    {
+        static bool isinit = false;
+        if (!isinit)
+        {
+            ms_layout
+                .begin()
+                .add(bgfx::Attrib::TexCoord7, 4, bgfx::AttribType::Float)
+                .end();
+            isinit = true;
+        }
+    };
+
+    static bgfx::VertexLayout ms_layout;
+};
+
+struct VoxCube
+{
+    void Create(const std::vector<Vec3f>& pts);
+
+    VoxCube() :
+        //pvertices(nullptr),
+        verticesSize(0),
+        memsize(0)
+    {
+    }
+    ~VoxCube();
+    void Use();
+
+    bgfxh<bgfx::VertexBufferHandle> vbh;
+
+    VoxelVertex* pvertices;
+    size_t verticesSize;
+    size_t memsize;
+    static void ReleaseFn(void* ptr, void* pThis);
+
+};
