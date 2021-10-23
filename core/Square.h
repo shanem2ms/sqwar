@@ -18,7 +18,7 @@ namespace sam
         bgfxh<bgfx::TextureHandle> m_depthtex;
         bgfxh<bgfx::TextureHandle> m_vidtex;
         std::shared_ptr<VoxCube> m_voxelinst;
-        std::vector<gmtl::Vec3f> m_pts;
+        std::vector<gmtl::Vec4f> m_pts;
         std::mutex m_ptsmtx;
     public:
         Square() {}

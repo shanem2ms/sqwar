@@ -13,5 +13,6 @@
 namespace sam
 {
     void GetDepthPoints(const std::vector<float>& floatArray,
-        std::vector<gmtl::Vec3f>& outPts, int depthWidth, int depthHeight);
+        const unsigned char* vdata,
+        std::vector<gmtl::Vec4f>& outPts, int depthWidth, int depthHeight);
 }

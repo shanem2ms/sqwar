@@ -12,7 +12,8 @@ namespace sam
 {
 
     void GetDepthPoints(const std::vector<float>& floatArray,
-        std::vector<Vec3f>& outPts, int depthWidth, int depthHeight)
+        const unsigned char* vdata,
+        std::vector<Vec4f>& outPts, int depthWidth, int depthHeight)
     {
         float ratioX = floatArray[9] / depthWidth;
         float ratioY = floatArray[10] / depthHeight;
@@ -31,7 +32,7 @@ namespace sam
         float dSclX = 1.0f;
         float dSclY = 1.0f;
 
-        std::vector<Vec3f>& pos = outPts;
+        std::vector<Vec4f>& pos = outPts;
         const float* depthArray = floatArray.data() + 16;
 
         for (int y = 0; y < depthHeight; ++y)
@@ -39,6 +40,7 @@ namespace sam
             for (int x = 0; x < depthWidth; ++x)
             {
                 float depthVal = depthArray[y * depthWidth + x];
+                unsigned char v = vdata[(y * depthWidth + x) * 4];
                 if (!isnan(depthVal))
                 {
                     float xrw = (x - xOff) * depthVal / xScl;
@@ -46,11 +48,11 @@ namespace sam
                     Vec4f viewPos = Vec4f(xrw, yrw, depthVal, 1);
                     Vec4f modelPos;
                     xform(modelPos, matTransform, viewPos);
-                    pos.push_back(Vec3f(modelPos[0], modelPos[1], modelPos[2]));
+                    pos.push_back(Vec4f(modelPos[0], modelPos[1], modelPos[2], v));
                 }
                 else
                 {
-                    pos.push_back(Vec3f(INFINITY, INFINITY, INFINITY));
+                    pos.push_back(Vec4f(INFINITY, INFINITY, INFINITY, v));
                 }
             }
         }

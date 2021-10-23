@@ -20,8 +20,8 @@ namespace sam
 
     void Square::SetDepthData(const unsigned char* vdata, size_t vsize, const std::vector<float> &depthData)
     {
-        std::vector<gmtl::Vec3f> pts;
-        GetDepthPoints(depthData, pts, 640, 480);
+        std::vector<gmtl::Vec4f> pts;
+        GetDepthPoints(depthData, vdata, pts, 640, 480);
         m_ptsmtx.lock();
         std::swap(m_pts, pts);
         m_ptsmtx.unlock();

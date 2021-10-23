@@ -1,5 +1,5 @@
 $input a_position, a_texcoord0, a_normal, i_data0
-$output v_texcoord0, v_normal
+$output v_texcoord0, v_normal, v_vtxcolor
 
 
 /*
@@ -16,5 +16,7 @@ void main()
 	v_texcoord0 = tx; 
 	v_normal = a_normal;  
 	float s = 0.001;
+	float c = i_data0.w / 255.0;
+	v_vtxcolor = vec4(c, c, c, 1);
 	gl_Position = mul(u_modelViewProj, vec4(a_position.x * s + i_data0.x, a_position.y * s + i_data0.y, a_position.z * s + i_data0.z, 1.0) );
 }

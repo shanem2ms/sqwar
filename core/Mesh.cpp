@@ -159,15 +159,15 @@ void CubeList::Create(const std::vector<Vec3f>& pts, float cubeSize)
 
 
 
-void VoxCube::Create(const std::vector<Vec3f>& pts)
+void VoxCube::Create(const std::vector<Vec4f>& pts)
 {
     VoxelVertex::init();
     verticesSize = pts.size();
     pvertices = new VoxelVertex[verticesSize];
     VoxelVertex* pdata = pvertices;
-    for (const Vec3f& pt : pts)
+    for (const Vec4f& pt : pts)
     {
-        VoxelVertex vtx = { pt[0], pt[1], pt[2], 0 };
+        VoxelVertex vtx = { pt[0], pt[1], pt[2], pt[3] };
         *pdata++ = vtx;
     }
 

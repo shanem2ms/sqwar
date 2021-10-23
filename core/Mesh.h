@@ -222,7 +222,7 @@ struct VoxelVertex
 
 struct VoxCube
 {
-    void Create(const std::vector<Vec3f>& pts);
+    void Create(const std::vector<Vec4f>& pts);
 
     VoxCube() :
         //pvertices(nullptr),
