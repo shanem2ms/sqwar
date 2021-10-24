@@ -163,7 +163,8 @@ namespace sam
     Camera::Camera() :
         m_mode(0),
         m_near(0.002f),
-        m_far(25.0f)
+        m_far(25.0f),
+        m_isPerspective(true)
     {}
 
 
