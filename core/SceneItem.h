@@ -48,12 +48,12 @@ namespace sam
         struct LookAt
         {
             LookAt() : pos(0, 0, 0),
-                tilt(0),
-                dist(0) {}
+                dir(0,0),
+                dist(1) {}
 
             Point3f pos;
-            float tilt;
             float dist;
+            Vec2f dir;
         };
 
         struct Fly
@@ -84,6 +84,7 @@ namespace sam
         void SetLookat(const LookAt& la)
         {
             m_lookat = la;
+            m_mode = 1;
         }
 
         const LookAt& GetLookat() const { return m_lookat; }
@@ -91,6 +92,7 @@ namespace sam
         void SetFly(const Fly& la)
         {
             m_fly = la;
+            m_mode = 0;
         }
 
         const Fly& GetFly() const { return m_fly; }

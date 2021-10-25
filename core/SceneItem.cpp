@@ -224,9 +224,12 @@ namespace sam
         }
         else
         {
-            setRot(rot, AxisAnglef(Math::PI + m_lookat.tilt, 1.0f, 0.0f, 0.0f));
+            Quatf q0 = make<gmtl::Quatf>(AxisAnglef(Math::PI + m_lookat.dir[1], 1.0f, 0.0f, 0.0f));
+            Quatf q1 = make<gmtl::Quatf>(AxisAnglef(Math::PI + m_lookat.dir[0], 0.0f, 1.0f, 0.0f));
+            Quatf q2 = make<gmtl::Quatf>(AxisAnglef(Math::PI, 0.0f, 0.0f, 1.0f));
+            Quatf q = q0 * q1 * q2;
+            setRot(rot, q);
             Vec3f vec(0, 0, m_lookat.dist);
-            Quatf q = make<gmtl::Quatf>(AxisAnglef(Math::PI + m_lookat.tilt, 1.0f, 0.0f, 0.0f));
             vec = q * vec;
             setTrans(off, m_lookat.pos + vec);
 

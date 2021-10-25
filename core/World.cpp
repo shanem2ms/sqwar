@@ -74,7 +74,7 @@ namespace sam
         float yb = y / m_height;
 
         Engine& e = Engine::Inst();
-        Camera::Fly la = e.Cam().GetFly();
+        Camera::LookAt la = e.Cam().GetLookat();
 
         m_activeTouch->m_initCamDir = la.dir;
         m_activeTouch->SetInitialPos(Point2f(xb, yb));
@@ -91,6 +91,13 @@ namespace sam
             m_activeTouch->SetDragPos(Point2f(xb, yb));
 
             Vec2f dragDiff = Point2f(xb, yb) - m_activeTouch->TouchPos();
+            Engine& e = Engine::Inst();
+            Camera::LookAt la = e.Cam().GetLookat();
+
+            
+            la.dir = m_activeTouch->m_initCamDir -
+                dragDiff * 2.0f;
+            e.Cam().SetLookat(la);
             
         }
     }
@@ -113,7 +120,7 @@ namespace sam
     Vec3f g_vel;
     void World::KeyDown(int k)
     {
-        float speed = 0.01f;
+        float speed = 0.1f;
         switch (k)
         {
         case 'P':
@@ -179,15 +186,15 @@ namespace sam
             float scl = 1.0f;
             m_square->SetScale(Vec3f(scl, scl, scl));
             m_worldGroup->AddItem(m_square);
-            Camera::Fly la = e.Cam().GetFly();
-            la.pos[2] = -0.02f;
-            e.Cam().SetFly(la);
+            Camera::LookAt la = e.Cam().GetLookat();
+            la.pos = Point3f(0, 0, -0.6f);
+            e.Cam().SetLookat(la);
         }
 
         {
-            Camera::Fly la = e.Cam().GetFly();
+            Camera::LookAt la = e.Cam().GetLookat();
             la.pos += g_vel;
-            e.Cam().SetFly(la);
+            e.Cam().SetLookat(la);
         }
     }
 
