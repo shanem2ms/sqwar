@@ -281,7 +281,7 @@ struct TileBreak
     Side edge;
     Result* pTile;
 
-    bool operator < (const TileBreak& rhs)
+    bool operator < (const TileBreak& rhs) const
     {
         if (xyVal != rhs.xyVal)
             return xyVal < rhs.xyVal;
