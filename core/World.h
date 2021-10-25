@@ -2,7 +2,7 @@
 #include <map>
 #include <set>
 #include "SceneItem.h"
-#include "Square.h"
+#include "PtsVis.h"
 
 class SimplexNoise;
 namespace sam
@@ -24,10 +24,10 @@ namespace sam
         std::shared_ptr<Touch> m_activeTouch;
         int m_currentTool;
         bgfx::ProgramHandle m_shader;     
-        std::shared_ptr<Square> m_square;
+        std::shared_ptr<PtsVis> m_square;
     public:
 
-        const std::shared_ptr<Square> GetSquare() const
+        const std::shared_ptr<PtsVis> GetSquare() const
         { return m_square; }
 
         void Layout(int w, int h);

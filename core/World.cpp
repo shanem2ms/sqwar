@@ -182,7 +182,7 @@ namespace sam
             m_shader = e.LoadShader("vs_cubes.bin", "fs_cubes.bin");
             m_worldGroup->BeforeDraw([this](DrawContext& ctx) { ctx.m_pgm = m_shader; return true; });
 
-            m_square = std::make_shared<Square>();
+            m_square = std::make_shared<PtsVis>();
             float scl = 1.0f;
             m_square->SetScale(Vec3f(scl, scl, scl));
             m_worldGroup->AddItem(m_square);
