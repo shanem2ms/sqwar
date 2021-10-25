@@ -24,7 +24,7 @@ set(Header_Files
     "Network.h"
     "World.h"
     "Mesh.h"
-    "Square.h"
+    "PtsVis.h"
 )  
 
 source_group("Header Files" FILES ${Header_Files})
@@ -46,10 +46,11 @@ set(Source_Files
     "Hud.cpp"
     "SceneItem.cpp"
     "DepthPts.cpp"
+    "DepthPlanes.cpp"
     "World.cpp"
     "Mesh.cpp"
     "Network.cpp"
-    "Square.cpp"
+    "PtsVis.cpp"
     "imgui/imgui.cpp"
     "imgui/dear-imgui/imgui.cpp"
     "imgui/dear-imgui/imgui_draw.cpp"

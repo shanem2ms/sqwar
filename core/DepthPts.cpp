@@ -40,7 +40,10 @@ namespace sam
             for (int x = 0; x < depthWidth; ++x)
             {
                 float depthVal = depthArray[y * depthWidth + x];
-                unsigned char v = vdata[(y * depthWidth + x) * 4];
+                unsigned char r = vdata[(y * depthWidth + x) * 4];
+                unsigned char g = vdata[(y * depthWidth + x) * 4 + 1];
+                unsigned char b = vdata[(y * depthWidth + x) * 4 + 2];
+                float v =r + g * 256.0 + b * 256.0 * 256.0;
                 if (!isnan(depthVal))
                 {
                     float xrw = (x - xOff) * depthVal / xScl;

@@ -1,24 +1,24 @@
 #include "StdIncludes.h"
-#include "Square.h"
+#include "PtsVis.h"
 #include "DepthPts.h"
 #include "Mesh.h"
 
 namespace sam
 {
 
-    AABoxf Square::GetBounds() const
+    AABoxf PtsVis::GetBounds() const
     {
         return AABoxf();
     }
 
-    void Square::Initialize(DrawContext& nvg)
+    void PtsVis::Initialize(DrawContext& nvg)
     {
         m_uparams = bgfx::createUniform("u_params", bgfx::UniformType::Vec4, 1);
         m_vtexture = bgfx::createUniform("s_vid", bgfx::UniformType::Sampler);
         m_dtexture = bgfx::createUniform("s_depth", bgfx::UniformType::Sampler);
     }
 
-    void Square::SetDepthData(const unsigned char* vdata, size_t vsize, const std::vector<float> &depthData)
+    void PtsVis::SetDepthData(const unsigned char* vdata, size_t vsize, const std::vector<float> &depthData)
     {
         std::vector<gmtl::Vec4f> pts;
         GetDepthPoints(depthData, vdata, pts, 640, 480);
@@ -27,7 +27,7 @@ namespace sam
         m_ptsmtx.unlock();
     }
 
-    void Square::Draw(DrawContext& ctx)
+    void PtsVis::Draw(DrawContext& ctx)
     {
         if (m_pts.size() == 0)
             return;

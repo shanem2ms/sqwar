@@ -9,7 +9,7 @@ namespace sam
     struct DrawContext;
 
 
-    class Square : public SceneItem
+    class PtsVis : public SceneItem
     {
         AABoxf GetBounds() const override;
         bgfxh<bgfx::UniformHandle> m_uparams;
@@ -21,7 +21,7 @@ namespace sam
         std::vector<gmtl::Vec4f> m_pts;
         std::mutex m_ptsmtx;
     public:
-        Square() {}
+        PtsVis() {}
         void SetDepthData(const unsigned char* vdata, size_t vsize,
             const std::vector<float>& depthData);
     protected:
