@@ -1,10 +1,5 @@
 // dllmain.cpp : Defines the entry point for the DLL application.
 #include "StdIncludes.h"
-#include <cmath>
-#include <vector>
-#include <map>
-#include <memory>
-#include <algorithm>
 #include "DepthPts.h"
 #include <gmtl/AABox.h>
 #include <gmtl/AABoxOps.h>
