@@ -21,7 +21,7 @@ namespace sam
     void PtsVis::SetDepthData(const unsigned char* vdata, size_t vsize, const std::vector<float> &depthData)
     {
         std::vector<gmtl::Vec4f> pts;
-        GetDepthPoints(depthData, vdata, pts, 640, 480);
+        GetDepthPointsWithColor(depthData, vdata, pts, 640, 480, 10000.0f);
         m_ptsmtx.lock();
         std::swap(m_pts, pts);
         m_ptsmtx.unlock();

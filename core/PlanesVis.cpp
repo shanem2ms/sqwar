@@ -28,19 +28,9 @@ namespace sam
         outCoords.resize(1 << 16);
         outTexCoords.resize(1 << 16);
         int count = 0;
-        std::vector<gmtl::Point3f> pts3;
-        {
-            std::vector<gmtl::Vec4f> pts;
-            GetDepthPoints(depthData, vdata, pts, 640, 480);
-            pts3.resize(pts.size());
-            auto itpt1 = pts.begin();
-            auto itpt2 = pts3.begin();
-            for (; itpt1 != pts.end(); ++itpt1, ++itpt2)
-            {
-                memcpy(&(*itpt2), &(*itpt1), sizeof(gmtl::Point3f));
-            }
-        }
-        DepthMakePlanes(pts3.data(), outCoords.data(), outTexCoords.data(), outTexCoords.size(), &count,
+        std::vector<gmtl::Point3f> pts;
+        GetDepthPoints(depthData, pts, 640, 480, 10000.0f);
+        DepthMakePlanes(pts.data(), outCoords.data(), outTexCoords.data(), outTexCoords.size(), &count,
             640, 480);
         std::vector<PosTexcoordVertex> postx;
         postx.resize(count);
@@ -71,14 +61,16 @@ namespace sam
 
         if (m_pts.size() == 0)
             return;
+        size_t ptsize;
         m_ptsmtx.lock();
         PosTexcoordVertex* pvtx = new PosTexcoordVertex[m_pts.size()];
-        memcpy(pvtx, m_pts.data(), m_pts.size());
+        ptsize = m_pts.size();
+        memcpy(pvtx, m_pts.data(), m_pts.size() * sizeof(PosTexcoordVertex));
+        m_ptsmtx.unlock();
         m_vbh = bgfx::createVertexBuffer(
-            bgfx::makeRef(pvtx, m_pts.size() * sizeof(PosTexcoordVertex), ReleaseFn)
+            bgfx::makeRef(pvtx, ptsize * sizeof(PosTexcoordVertex), ReleaseFn)
             , PosTexcoordVertex::ms_layout
         );
-        m_ptsmtx.unlock();
       
         Cube::init();
         Matrix44f m = ctx.m_mat * CalcMat();

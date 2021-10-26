@@ -54,6 +54,8 @@ namespace sam
             Point3f pos;
             float dist;
             Vec2f dir;
+
+            void GetDirs(Vec3f& right, Vec3f& up, Vec3f& forward) const;
         };
 
         struct Fly

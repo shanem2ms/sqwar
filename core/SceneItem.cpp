@@ -180,6 +180,18 @@ namespace sam
         normalize(up);
     }
 
+    void Camera::LookAt::GetDirs(Vec3f& right, Vec3f& up, Vec3f& forward) const
+    {
+        Quatf q0 = make<gmtl::Quatf>(AxisAnglef(Math::PI + dir[1], 1.0f, 0.0f, 0.0f));
+        Quatf q1 = make<gmtl::Quatf>(AxisAnglef(Math::PI + dir[0], 0.0f, 1.0f, 0.0f));
+        Quatf q2 = make<gmtl::Quatf>(AxisAnglef(Math::PI, 0.0f, 0.0f, 1.0f));
+        Quatf q = q0 * q1 * q2;
+        xform(right, q, Vec3f(1, 0, 0));
+        xform(up, q, Vec3f(0, 1, 0));
+        xform(forward, q, Vec3f(0, 0, 1));
+    }
+
+
     void Camera::SetPerspectiveMatrix(float near, float far)
     {
         m_near = near;

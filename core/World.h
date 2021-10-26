@@ -25,11 +25,12 @@ namespace sam
         std::shared_ptr<Touch> m_activeTouch;
         int m_currentTool;
         bgfx::ProgramHandle m_shader;     
-        std::shared_ptr<PlanesVis> m_vis;
+        std::shared_ptr<PlanesVis> m_planevis;
+        std::shared_ptr<PtsVis> m_ptsvis;
     public:
 
-        const std::shared_ptr<PlanesVis> GetVis() const
-        { return m_vis; }
+
+        void OnDepthBuffer(const std::vector<unsigned char>& vidData, const std::vector<float>& depthData);
 
         void Layout(int w, int h);
         World();

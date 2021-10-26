@@ -119,7 +119,7 @@ namespace sam
             return m_buffer.depthPths[ry * m_buffer.width + rx];
         }
 
-        void Process(std::vector<ResultPtr>& quads, int level)
+        bool Process(std::vector<ResultPtr>& quads, int level)
         {
             const Point3f* ptl = nullptr, * ptr = nullptr,
                 * pbl = nullptr, * pbr = nullptr;
@@ -182,7 +182,7 @@ namespace sam
             }
 
             if (found < 4)
-                return;
+                return false;
 
             Vec3f vec1 = *pbr - *ptr;
             Vec3f vec2 = *ptr - *ptl;
@@ -203,7 +203,7 @@ namespace sam
                 sprintf_s(output, "Tile [%d, %d] [%d, %d]\n", m_rect.x, m_rect.y, m_rect.w, m_rect.h);
                 OutputDebugStringA(output);
 #endif
-                return;
+                return false;
             }
 
             normalize(nrm1);
@@ -268,6 +268,8 @@ namespace sam
 
                 quads.push_back(std::make_shared<Result>(r));
             }
+
+            return true;
         }
     };
 

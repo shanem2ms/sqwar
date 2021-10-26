@@ -182,10 +182,17 @@ namespace sam
             m_shader = e.LoadShader("vs_cubes.bin", "fs_cubes.bin");
             m_worldGroup->BeforeDraw([this](DrawContext& ctx) { ctx.m_pgm = m_shader; return true; });
 
-            m_vis = std::make_shared<PlanesVis>();
             float scl = 1.0f;
-            m_vis->SetScale(Vec3f(scl, scl, scl));
-            m_worldGroup->AddItem(m_vis);
+            m_planevis = std::make_shared<PlanesVis>();
+            m_planevis->SetScale(Vec3f(scl, scl, scl));
+            m_worldGroup->AddItem(m_planevis);
+
+            if (false)
+            {
+                m_ptsvis = std::make_shared<PtsVis>();
+                m_ptsvis->SetScale(Vec3f(scl, scl, scl));
+                m_worldGroup->AddItem(m_ptsvis);
+            }
             Camera::LookAt la = e.Cam().GetLookat();
             la.pos = Point3f(0, 0, -0.6f);
             e.Cam().SetLookat(la);
@@ -193,7 +200,9 @@ namespace sam
 
         {
             Camera::LookAt la = e.Cam().GetLookat();
-            la.pos += g_vel;
+            Vec3f right, up, forward;
+            la.GetDirs(right, up, forward);
+            la.pos += (g_vel[0] * right + g_vel[1] * up + g_vel[2] * forward);
             e.Cam().SetLookat(la);
         }
     }
@@ -208,6 +217,19 @@ namespace sam
     World::~World()
     {
 
+    }
+
+    void World::OnDepthBuffer(const std::vector<unsigned char>& vidData, const std::vector<float>& depthData)
+    {
+        if (!isPaused)
+        {
+            if (m_planevis)
+                m_planevis->SetDepthData(
+                vidData.data(), vidData.size(), depthData);
+            if (m_ptsvis)
+                m_ptsvis->SetDepthData(
+                vidData.data(), vidData.size(), depthData);
+        }
     }
 
 }
