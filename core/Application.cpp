@@ -164,8 +164,8 @@ namespace sam
                            sizeof(float));
         s_pInst->WriteDepthDataToFile(vidData, depthData);
 #endif
-        if (s_pInst->m_world->GetSquare())
-            s_pInst->m_world->GetSquare()->SetDepthData(
+        if (s_pInst->m_world->GetVis())
+            s_pInst->m_world->GetVis()->SetDepthData(
                 vidData.data(), vidData.size(), depthData);
     }
     Application::~Application()

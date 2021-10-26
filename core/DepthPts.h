@@ -15,4 +15,7 @@ namespace sam
     void GetDepthPoints(const std::vector<float>& floatArray,
         const unsigned char* vdata,
         std::vector<gmtl::Vec4f>& outPts, int depthWidth, int depthHeight);
+
+    void DepthMakePlanes(const gmtl::Point3f* vals, gmtl::Point3f* outVertices, gmtl::Point3f* outTexCoords, int maxCount, int* outCount,
+        int depthWidth, int depthHeight);
 }
