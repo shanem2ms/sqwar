@@ -852,6 +852,8 @@ static const uint8_t mdns_services_query[] = {
     // QU (unicast response) and class IN
     0x80, MDNS_CLASS_IN};
 
+void mdns_shutdown();
+
 static int
 mdns_discovery_send(int sock) {
 	return mdns_multicast_send(sock, mdns_services_query, sizeof(mdns_services_query));

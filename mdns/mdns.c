@@ -794,6 +794,14 @@ int send_mdns_query(const char* service, int record,
 	return 0;
 }
 
+
+static char terminate = 0;
+
+void mdns_shutdown()
+{
+	terminate = 1;
+}
+
 // Provide a mDNS service, answering incoming DNS-SD and mDNS queries
 static int
 service_mdns(const char* hostname, const char* service_name, int service_port) {
@@ -914,8 +922,13 @@ service_mdns(const char* hostname, const char* service_name, int service_port) {
 				nfds = sockets[isock] + 1;
 			FD_SET(sockets[isock], &readfs);
 		}
-
-		if (select(nfds, &readfs, 0, 0, 0) >= 0) {
+		
+		struct timeval timeout;
+		timeout.tv_sec = 1;
+		timeout.tv_usec = 0;
+		if (select(nfds, &readfs, 0, 0, &timeout) >= 0) {
+			if (terminate)
+				break;
 			for (int isock = 0; isock < num_sockets; ++isock) {
 				if (FD_ISSET(sockets[isock], &readfs)) {
 					mdns_socket_listen(sockets[isock], buffer, capacity, service_callback,
