@@ -27,6 +27,8 @@ namespace sam
         bgfx::ProgramHandle m_shader;     
         std::shared_ptr<PlanesVis> m_planevis;
         std::shared_ptr<PtsVis> m_ptsvis;
+        int m_mode;
+        int m_prevMode;
     public:
 
 
@@ -35,6 +37,9 @@ namespace sam
         void Layout(int w, int h);
         World();
         ~World();
+        int GetMode() const { return m_mode; }
+        void SetMode(int mode) 
+        { m_mode = mode; }
         void Update(Engine& engine, DrawContext& ctx);
         void TouchDown(float x, float y, int touchId);
         void TouchDrag(float x, float y, int touchId);

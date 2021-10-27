@@ -18,7 +18,9 @@ namespace sam
     World::World() :
         m_width(-1),
         m_height(-1),
-        m_currentTool(0)
+        m_currentTool(0),
+        m_prevMode(-1),
+        m_mode(1)
     {
 
     }  
@@ -182,20 +184,27 @@ namespace sam
             m_shader = e.LoadShader("vs_cubes.bin", "fs_cubes.bin");
             m_worldGroup->BeforeDraw([this](DrawContext& ctx) { ctx.m_pgm = m_shader; return true; });
 
-            float scl = 1.0f;
-            m_planevis = std::make_shared<PlanesVis>();
-            m_planevis->SetScale(Vec3f(scl, scl, scl));
-            m_worldGroup->AddItem(m_planevis);
-
-            if (false)
-            {
-                m_ptsvis = std::make_shared<PtsVis>();
-                m_ptsvis->SetScale(Vec3f(scl, scl, scl));
-                m_worldGroup->AddItem(m_ptsvis);
-            }
             Camera::LookAt la = e.Cam().GetLookat();
             la.pos = Point3f(0, 0, -0.6f);
             e.Cam().SetLookat(la);
+        }
+
+        if (m_mode != m_prevMode)
+        {
+            m_worldGroup->Clear();
+            m_planevis = nullptr;
+            m_ptsvis = nullptr;
+            if (m_mode & 1)
+            {
+                m_planevis = std::make_shared<PlanesVis>();
+                m_worldGroup->AddItem(m_planevis);
+            }
+            if (m_mode & 2)
+            {
+                m_ptsvis = std::make_shared<PtsVis>();
+                m_worldGroup->AddItem(m_ptsvis);
+            }
+            m_prevMode = m_mode;
         }
 
         {

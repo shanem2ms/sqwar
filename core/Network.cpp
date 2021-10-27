@@ -160,8 +160,8 @@ namespace sam
     };
 
 
-    
     Server::Server(const std::function<void(const std::vector<unsigned char>& data)>& onData) :
+        m_iocontext(std::make_shared<asio::io_context>()),
         m_mdnsThread(MdsnThreadFunc),
         m_tcpServerThread(TcpThreadFunc, this),
         m_onData(onData)
@@ -174,6 +174,8 @@ namespace sam
 
     Server::~Server()
     {
+        m_iocontext->stop();
+        m_tcpServerThread.join();
         m_mdnsThread.join();
     }
 
@@ -187,9 +189,8 @@ namespace sam
             return;
         }
 #endif
-        asio::io_context io_context;
-        TcpServer tcpServer(io_context, 13579, pServer->m_onData);
-        io_context.run();
+        TcpServer tcpServer(*pServer->m_iocontext, 13579, pServer->m_onData);
+        pServer->m_iocontext->run();
 
 #ifdef _WIN32
         WSACleanup();

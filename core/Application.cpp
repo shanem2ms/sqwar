@@ -125,7 +125,7 @@ namespace sam
         bgfx::setViewRect(1, 0, 0, uint16_t(m_width), uint16_t(m_height));
         m_engine->Draw(ctx);
 
-        imguiBeginFrame(m_touchPos[0]
+         imguiBeginFrame(m_touchPos[0]
             , m_touchPos[1]
             , m_buttonDown
             , 0
@@ -133,14 +133,29 @@ namespace sam
             , uint16_t(m_height)
         );
 
-        ImGui::PushStyleColor(ImGuiCol_Text
-            , false
-            ? ImVec4(1.0, 0.0, 0.0, 1.0)
-            : ImVec4(1.0, 1.0, 1.0, 1.0)
+        const int btnSize = 80;
+        const int btnSpace = 10;
+        ImGui::SetNextWindowPos(
+            ImVec2(btnSize, btnSize)
+            , ImGuiCond_Always
         );
-        ImGui::TextWrapped("%s", "What is going on here");
-        ImGui::Separator();
-        ImGui::PopStyleColor();
+
+        int buttonsThisFrame[256];
+        memset(buttonsThisFrame, 0, sizeof(buttonsThisFrame));
+        ImGui::Begin("make window", nullptr,
+            ImGuiWindowFlags_NoBackground |
+            ImGuiWindowFlags_NoTitleBar |
+            ImGuiWindowFlags_NoResize |
+            ImGuiWindowFlags_NoMove);
+
+        ImGui::SetCursorPos(ImVec2(0, 0));
+        if (ImGui::Button(ICON_FA_CHEVRON_UP, ImVec2(btnSize, btnSize)))
+        {
+            m_world->SetMode(
+                (m_world->GetMode() + 1) & 3);
+        }
+
+        ImGui::End();
 
         imguiEndFrame();
         m_frameIdx = bgfx::frame() + 1;
