@@ -176,6 +176,7 @@ namespace sam
     {
         m_iocontext->stop();
         m_tcpServerThread.join();
+        mdns_shutdown();
         m_mdnsThread.join();
     }
 
