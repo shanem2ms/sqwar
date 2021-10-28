@@ -628,8 +628,8 @@ didOutputSynchronizedDataCollection:(AVCaptureSynchronizedDataCollection *)synch
         memcpy(vidData.data(), pVidBuffer, vidData.size());
         CVPixelBufferUnlockBaseAddress(imgBuffer, kCVPixelBufferLock_ReadOnly);
     
-        std::vector<float> depthData(datasize / sizeof(float) +  16);
         datasize = CVPixelBufferGetDataSize(depthBuffer);
+        std::vector<float> depthData(datasize / sizeof(float) +  16);
         memcpy(depthData.data(), mtxarray, sizeof(mtxarray));
         
         CVPixelBufferLockBaseAddress(depthBuffer, kCVPixelBufferLock_ReadOnly);
