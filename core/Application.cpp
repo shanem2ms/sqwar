@@ -173,10 +173,13 @@ namespace sam
     
     void Application::OnDepthBuffer(const std::vector<unsigned char> &vidData, const std::vector<float>& depthData)
     {
-#ifdef DOWRITEDATA
+#ifdef DOSENDDATA
         static Client c;
         c.SendData((const unsigned char *)depthData.data(), depthData.size() *
                            sizeof(float));
+#endif
+#define DOWRITEDATA 1
+#ifdef DOWRITEDATA
         s_pInst->WriteDepthDataToFile(vidData, depthData);
 #endif
         s_pInst->m_world->OnDepthBuffer(vidData, depthData);

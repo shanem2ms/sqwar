@@ -65,6 +65,7 @@ find_library(UIKITLIB UIKit)
 find_library(MODELIOLIB ModelIO)
 find_library(OPENGL OpenGLES)
 find_library(AVFOUNDATION AVFoundation)
+find_library(ARKITLIB ARKit)
 
 
 set (PLATFORMLIBS 
@@ -76,6 +77,7 @@ set (PLATFORMLIBS
 "${COREVIDEOLIB}"
 "${QUARTZCORELIB};"
 "${METALKITLIB};"
+"${ARKITLIB};"
 "${UIKITLIB};"
 "${MODELIOLIB};"
 "${OPENGL};"

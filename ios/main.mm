@@ -11,6 +11,7 @@
 #import <CoreVideo/CoreVideo.h>
 #import <AVFoundation/AVFoundation.h>
 #import <QuartzCore/CAEAGLLayer.h>
+#import <ARKit/ARKit.h>
 
 #if __IPHONE_8_0 && !TARGET_IPHONE_SIMULATOR  // check if sdk/target supports metal
 #   import <Metal/Metal.h>
@@ -312,6 +313,12 @@ static    void* m_device = NULL;
 - (id)initWithDepthOutput:(AVCaptureDepthDataOutput *)pDataOutput withVideo:(AVCaptureVideoDataOutput *)pVideoOutput;
 @end
 
+@interface ARDelegate : NSObject<ARSessionDelegate>
+{
+    
+}
+@end
+
 @interface AppDelegate : UIResponder<UIApplicationDelegate>
 {
     UIWindow* m_window;
@@ -322,7 +329,8 @@ static    void* m_device = NULL;
     AVCaptureDepthDataOutput *m_pDepthOutput;
     AVCaptureVideoDataOutput *m_pVideoOutput;
     AVDelegate *m_pAVDelegate;
-    
+    ARSession *m_arSession;
+    ARDelegate *m_arDelegate;
 }
 
 @property (nonatomic, retain) UIWindow* m_window;
@@ -357,11 +365,10 @@ static    void* m_device = NULL;
     [m_view setContentScaleFactor: scaleFactor ];
 
     s_ctx = new Context((uint32_t)(scaleFactor*rect.size.width), (uint32_t)(scaleFactor*rect.size.height));
-    
+
+    /*
     m_dataQueue =
         dispatch_queue_create("avqueue", nullptr);
-    m_sessionQueue =
-        dispatch_queue_create("sessionqueue", nullptr);
     m_pSession = [[AVCaptureSession alloc] init];
     m_pDepthOutput = [[AVCaptureDepthDataOutput alloc] init];
     m_pVideoOutput = [[AVCaptureVideoDataOutput alloc] init];
@@ -373,8 +380,11 @@ static    void* m_device = NULL;
             //self.microphoneConsentState = PrivacyConsentStateDenied;
         }
     }];
+    */
+    m_sessionQueue =
+        dispatch_queue_create("sessionqueue", nullptr);
     dispatch_async(m_sessionQueue,  ^(void){
-        [self configureSession];
+        [self configureARSession];
     });
     
     
@@ -439,6 +449,32 @@ static    void* m_device = NULL;
     [m_pSession startRunning];
 }
 
+- (void)configureARSession
+{
+    m_arSession = [[ARSession alloc] init];
+    m_arDelegate = [[ARDelegate alloc] init];
+    
+    ARFaceTrackingConfiguration *config = [[ARFaceTrackingConfiguration alloc] init];
+    config.lightEstimationEnabled = true;
+    NSArray<ARVideoFormat *> *pVidFormts = ARFaceTrackingConfiguration.supportedVideoFormats;
+    unsigned long cnt = [pVidFormts count];
+    unsigned long foundIdx = -1;
+    float minwidth = 100000;
+    for (unsigned long fidx = 0; fidx < cnt; fidx++)
+    {
+        CGSize res = pVidFormts[fidx].imageResolution;
+        if (res.width < minwidth)
+        {
+            minwidth = res.width;
+            foundIdx = fidx;
+        }
+    }
+    config.videoFormat = pVidFormts[0];
+
+    m_arSession.delegate = m_arDelegate;
+    [m_arSession runWithConfiguration:config];
+}
+
 - (void)applicationWillResignActive:(UIApplication *)application
 {
     BX_UNUSED(application);
@@ -498,6 +534,10 @@ int main(int _argc, char * _argv[])
     return self;
 }
 
+- (void * _Nullable)extracted:(CVImageBufferRef)imgbufref {
+    return CVPixelBufferGetBaseAddress(imgbufref);
+}
+
 - (void)dataOutputSynchronizer:(AVCaptureDataOutputSynchronizer *)synchronizer
 didOutputSynchronizedDataCollection:(AVCaptureSynchronizedDataCollection *)synchronizedDataCollection
 {
@@ -539,7 +579,7 @@ didOutputSynchronizedDataCollection:(AVCaptureSynchronizedDataCollection *)synch
         CVPixelBufferUnlockBaseAddress(pixelBuffer, kCVPixelBufferLock_ReadOnly);
         CVPixelBufferLockBaseAddress(imgbufref, kCVPixelBufferLock_ReadOnly);
         size_t datasize = CVPixelBufferGetDataSize(imgbufref);
-        void *pVidBuffer = CVPixelBufferGetBaseAddress(imgbufref);
+        void *pVidBuffer = [self extracted:imgbufref];
         memcpy(vidData.data(), pVidBuffer, vidData.size());
         CVPixelBufferUnlockBaseAddress(imgbufref, kCVPixelBufferLock_ReadOnly);
         entry::s_ctx->m_pApplication->OnDepthBuffer(vidData, pixelData);
@@ -549,3 +589,35 @@ didOutputSynchronizedDataCollection:(AVCaptureSynchronizedDataCollection *)synch
 
 @end
 
+@implementation ARDelegate
+- (void)session:(ARSession *)session
+ didUpdateFrame:(ARFrame *)frame
+{
+    AVDepthData *pDepthData = frame.capturedDepthData;
+    if (pDepthData == nil)
+        return;
+    
+    CVPixelBufferRef imgBuffer = [frame capturedImage];
+    CVPixelBufferRef depthBuffer = pDepthData.depthDataMap;
+    size_t width = CVPixelBufferGetWidth(depthBuffer);
+    size_t height = CVPixelBufferGetHeight(depthBuffer);
+    if (CVPixelBufferGetPixelFormatType(imgBuffer) == kCVPixelFormatType_420YpCbCr8BiPlanarFullRange &&
+        CVPixelBufferGetPixelFormatType(depthBuffer) == kCVPixelFormatType_DepthFloat32)
+    {
+        CVPixelBufferLockBaseAddress(imgBuffer, kCVPixelBufferLock_ReadOnly);
+        size_t datasize = CVPixelBufferGetDataSize(imgBuffer);
+        void *pVidBuffer = CVPixelBufferGetBaseAddress(imgBuffer);
+        std::vector<unsigned char> vidData(datasize);
+        memcpy(vidData.data(), pVidBuffer, vidData.size());
+        CVPixelBufferUnlockBaseAddress(imgBuffer, kCVPixelBufferLock_ReadOnly);
+    
+        CVPixelBufferLockBaseAddress(depthBuffer, kCVPixelBufferLock_ReadOnly);
+        datasize = CVPixelBufferGetDataSize(depthBuffer);
+        void *pDepthBuffer = CVPixelBufferGetBaseAddress(depthBuffer);
+        std::vector<float> depthData(datasize / sizeof(float));
+        memcpy(depthData.data(), pDepthBuffer, depthData.size());
+        CVPixelBufferUnlockBaseAddress(depthBuffer, kCVPixelBufferLock_ReadOnly);
+        entry::s_ctx->m_pApplication->OnDepthBuffer(vidData, depthData);
+    }
+}
+@end
