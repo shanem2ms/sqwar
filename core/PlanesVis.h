@@ -7,7 +7,7 @@ struct PosTexcoordVertex;
 namespace sam
 {
     struct DrawContext;
-
+    struct DepthDataProps;
 
     class PlanesVis : public SceneItem
     {
@@ -20,7 +20,7 @@ namespace sam
         PlanesVis();
         ~PlanesVis();
         void SetDepthData(const unsigned char* vdata, size_t vsize,
-            const std::vector<float>& depthData);
+            const std::vector<float>& depthData, const DepthDataProps &props);
     protected:
 
         void Initialize(DrawContext& nvg) override;

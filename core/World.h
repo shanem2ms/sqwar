@@ -13,6 +13,7 @@ namespace sam
     class Engine;
     class Touch;
     class TargetCube;
+    struct DepthDataProps;
 
     class World
     {
@@ -32,7 +33,7 @@ namespace sam
     public:
 
 
-        void OnDepthBuffer(const std::vector<unsigned char>& vidData, const std::vector<float>& depthData);
+        void OnDepthBuffer(const std::vector<unsigned char>& vidData, const std::vector<float>& depthData, const DepthDataProps &props);
 
         void Layout(int w, int h);
         World();

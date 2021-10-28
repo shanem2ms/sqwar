@@ -20,7 +20,7 @@ namespace sam
         m_height(-1),
         m_currentTool(0),
         m_prevMode(-1),
-        m_mode(1)
+        m_mode(2)
     {
 
     }  
@@ -228,16 +228,17 @@ namespace sam
 
     }
 
-    void World::OnDepthBuffer(const std::vector<unsigned char>& vidData, const std::vector<float>& depthData)
+    void World::OnDepthBuffer(const std::vector<unsigned char>& vidData, const std::vector<float>& depthData,
+        const DepthDataProps &props)
     {
         if (!isPaused)
         {
             if (m_planevis)
                 m_planevis->SetDepthData(
-                vidData.data(), vidData.size(), depthData);
+                vidData.data(), vidData.size(), depthData, props);
             if (m_ptsvis)
                 m_ptsvis->SetDepthData(
-                vidData.data(), vidData.size(), depthData);
+                vidData.data(), vidData.size(), depthData, props);
         }
     }
 

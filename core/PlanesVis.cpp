@@ -22,7 +22,8 @@ namespace sam
         m_uparams = bgfx::createUniform("u_params", bgfx::UniformType::Vec4, 1);
     }
 
-    void PlanesVis::SetDepthData(const unsigned char* vdata, size_t vsize, const std::vector<float> &depthData)
+    void PlanesVis::SetDepthData(const unsigned char* vdata, size_t vsize, const std::vector<float> &depthData,
+        const DepthDataProps& props)
     {
         std::vector<Point3f> outCoords, outTexCoords;
         outCoords.resize(1 << 16);

@@ -283,16 +283,22 @@ void Tick()
     if (!s_binfile.is_open())
         s_binfile = std::fstream("C:\\homep4\\\sqwar\\file.binary", std::ios::binary | std::ios::in);
 
-    std::vector<unsigned char> viddata(640 * 480 * 4);
-    std::vector<float> data(640 * 480 + 16);
-    s_binfile.read((char*)viddata.data(), viddata.size());
-    s_binfile.read((char*)data.data(), data.size() * sizeof(float));
+    size_t sz = 0;
+    s_binfile.read((char*)&sz, sizeof(sz));
+    sam::DepthDataProps wdp;
+    s_binfile.read((char*)&wdp, sz);
+    s_binfile.read((char*)&sz, sizeof(sz));
+    std::vector<unsigned char> viddata(sz);
+    s_binfile.read((char*)viddata.data(), sz);
+    s_binfile.read((char*)&sz, sizeof(sz));
+    std::vector<float> data(sz / sizeof(float));
+    s_binfile.read((char*)data.data(), sz);
     if (s_binfile.eof())
     {
         s_binfile.clear();
         s_binfile.seekg(0, s_binfile.beg);
     }
-    app.OnDepthBuffer(viddata, data);
+    app.OnDepthBuffer(viddata, data, wdp);
 #endif
     LARGE_INTEGER cur;
     QueryPerformanceCounter(&cur);

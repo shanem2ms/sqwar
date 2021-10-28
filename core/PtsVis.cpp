@@ -2,6 +2,7 @@
 #include "PtsVis.h"
 #include "DepthPts.h"
 #include "Mesh.h"
+#include "Application.h"
 
 namespace sam
 {
@@ -18,10 +19,11 @@ namespace sam
         m_dtexture = bgfx::createUniform("s_depth", bgfx::UniformType::Sampler);
     }
 
-    void PtsVis::SetDepthData(const unsigned char* vdata, size_t vsize, const std::vector<float> &depthData)
+    void PtsVis::SetDepthData(const unsigned char* vdata, size_t vsize, const std::vector<float> &depthData,
+        const DepthDataProps& props)
     {
         std::vector<gmtl::Vec4f> pts;
-        GetDepthPointsWithColor(depthData, vdata, pts, 640, 480, 10000.0f);
+        GetDepthPointsWithColor(depthData, vdata, props.vidWidth, props.vidHeight, pts, props.depthWidth, props.depthHeight, 10000.0f);
         m_ptsmtx.lock();
         std::swap(m_pts, pts);
         m_ptsmtx.unlock();

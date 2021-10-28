@@ -161,7 +161,7 @@ namespace sam
         m_frameIdx = bgfx::frame() + 1;
     }
 
-    void Application::WriteDepthDataToFile(const std::vector<unsigned char> &vidData, const std::vector<float> &pixelData, const WriteDataProps &props)
+    void Application::WriteDepthDataToFile(const std::vector<unsigned char> &vidData, const std::vector<float> &pixelData, const DepthDataProps &props)
     {
         static std::fstream fs;
         if (!fs.is_open())
@@ -179,7 +179,7 @@ namespace sam
     }
     
     void Application::OnDepthBuffer(const std::vector<unsigned char> &vidData, const std::vector<float>& depthData,
-                                const WriteDataProps &props)
+                                const DepthDataProps &props)
     {
 
 #ifdef DOSENDDATA
@@ -191,7 +191,7 @@ namespace sam
 #ifdef DOWRITEDATA
         s_pInst->WriteDepthDataToFile(vidData, depthData, props);
 #endif
-        s_pInst->m_world->OnDepthBuffer(vidData, depthData);
+        s_pInst->m_world->OnDepthBuffer(vidData, depthData, props);
     }
     Application::~Application()
     {

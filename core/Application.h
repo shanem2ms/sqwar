@@ -14,6 +14,8 @@ class Engine;
 struct DrawContext;
 class Server;
 class Client;
+struct DepthDataProps;
+
 class Application
 {
     std::unique_ptr<World> m_world;
@@ -47,21 +49,22 @@ public:
     static void SendMDNSQueryThread();
     const std::string &Documents() const
     { return m_documentsPath; }
-    struct WriteDataProps
-    {
-        uint32_t vidWidth;
-        uint32_t vidHeight;
-        uint32_t vidMode;
-        uint32_t depthWidth;
-        uint32_t depthHeight;
-        uint32_t depthMode;
-    };
+    
     void WriteDepthDataToFile(const std::vector<unsigned char> &vidData, const std::vector<float> &pixelData,
-                              const WriteDataProps &props);
+                              const DepthDataProps &props);
     static void OnDepthBuffer(const std::vector<unsigned char> &vidData, const std::vector<float> &pixelData,
-                              const WriteDataProps &props);
+                            const DepthDataProps& props);
     static void SetDebugMsgFunc(void (*dbgfunc)(const char*));
     static void DebugMsg(const std::string& str);
 };
 
+struct DepthDataProps
+{
+    uint32_t vidWidth;
+    uint32_t vidHeight;
+    uint32_t vidMode;
+    uint32_t depthWidth;
+    uint32_t depthHeight;
+    uint32_t depthMode;
+};
 }

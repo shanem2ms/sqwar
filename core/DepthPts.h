@@ -13,7 +13,7 @@
 namespace sam
 {
     void GetDepthPointsWithColor(const std::vector<float>& floatArray,
-        const unsigned char* vdata,
+        const unsigned char* vdata, int vWidth, int vHeight,
         std::vector<gmtl::Vec4f>& outPts, int depthWidth, int depthHeight, float maxdist);
 
     void GetDepthPoints(const std::vector<float>& floatArray,

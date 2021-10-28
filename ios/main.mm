@@ -581,7 +581,7 @@ didOutputSynchronizedDataCollection:(AVCaptureSynchronizedDataCollection *)synch
         void *pVidBuffer = [self extracted:imgbufref];
         memcpy(vidData.data(), pVidBuffer, vidData.size());
         CVPixelBufferUnlockBaseAddress(imgbufref, kCVPixelBufferLock_ReadOnly);
-        sam::Application::WriteDataProps wdp;
+        sam::Application::DepthDataProps wdp;
         wdp.depthHeight = CVPixelBufferGetWidth(pixelBuffer);
         wdp.depthWidth = CVPixelBufferGetHeight(pixelBuffer);
         wdp.vidHeight = CVPixelBufferGetWidth(imgbufref);
@@ -636,7 +636,7 @@ didOutputSynchronizedDataCollection:(AVCaptureSynchronizedDataCollection *)synch
         void *pDepthBuffer = CVPixelBufferGetBaseAddress(depthBuffer);
         memcpy(depthData.data() + 16, pDepthBuffer, depthData.size());
         CVPixelBufferUnlockBaseAddress(depthBuffer, kCVPixelBufferLock_ReadOnly);
-        sam::Application::WriteDataProps wdp;
+        sam::Application::DepthDataProps wdp;
         wdp.depthHeight = CVPixelBufferGetWidth(depthBuffer);
         wdp.depthWidth = CVPixelBufferGetHeight(depthBuffer);
         wdp.vidHeight = CVPixelBufferGetWidth(imgBuffer);

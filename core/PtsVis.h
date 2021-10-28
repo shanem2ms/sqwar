@@ -7,7 +7,7 @@ class VoxCube;
 namespace sam
 {
     struct DrawContext;
-
+    struct DepthDataProps;
 
     class PtsVis : public SceneItem
     {
@@ -23,7 +23,7 @@ namespace sam
     public:
         PtsVis() {}
         void SetDepthData(const unsigned char* vdata, size_t vsize,
-            const std::vector<float>& depthData);
+            const std::vector<float>& depthData, const DepthDataProps &props);
     protected:
 
         void Initialize(DrawContext& nvg) override;
