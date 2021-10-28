@@ -47,8 +47,19 @@ public:
     static void SendMDNSQueryThread();
     const std::string &Documents() const
     { return m_documentsPath; }
-    void WriteDepthDataToFile(const std::vector<unsigned char> &vidData, const std::vector<float> &pixelData);
-    static void OnDepthBuffer(const std::vector<unsigned char> &vidData, const std::vector<float> &pixelData);
+    struct WriteDataProps
+    {
+        uint32_t vidWidth;
+        uint32_t vidHeight;
+        uint32_t vidMode;
+        uint32_t depthWidth;
+        uint32_t depthHeight;
+        uint32_t depthMode;
+    };
+    void WriteDepthDataToFile(const std::vector<unsigned char> &vidData, const std::vector<float> &pixelData,
+                              const WriteDataProps &props);
+    static void OnDepthBuffer(const std::vector<unsigned char> &vidData, const std::vector<float> &pixelData,
+                              const WriteDataProps &props);
     static void SetDebugMsgFunc(void (*dbgfunc)(const char*));
     static void DebugMsg(const std::string& str);
 };

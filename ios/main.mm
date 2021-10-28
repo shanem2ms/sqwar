@@ -566,8 +566,7 @@ didOutputSynchronizedDataCollection:(AVCaptureSynchronizedDataCollection *)synch
     mtxarray[9] = size.width;
     mtxarray[10] = size.height;
     CVPixelBufferRef pixelBuffer = pDepthData.depthDataMap;
-    size_t width = CVPixelBufferGetWidth(pixelBuffer);
-    size_t height = CVPixelBufferGetHeight(pixelBuffer);
+
     if (kCVPixelFormatType_DepthFloat32 == CVPixelBufferGetPixelFormatType(pixelBuffer))
     {
         std::vector<float> pixelData(640*480 + 16);
@@ -582,7 +581,13 @@ didOutputSynchronizedDataCollection:(AVCaptureSynchronizedDataCollection *)synch
         void *pVidBuffer = [self extracted:imgbufref];
         memcpy(vidData.data(), pVidBuffer, vidData.size());
         CVPixelBufferUnlockBaseAddress(imgbufref, kCVPixelBufferLock_ReadOnly);
-        entry::s_ctx->m_pApplication->OnDepthBuffer(vidData, pixelData);
+        sam::Application::WriteDataProps wdp;
+        wdp.depthHeight = CVPixelBufferGetWidth(pixelBuffer);
+        wdp.depthWidth = CVPixelBufferGetHeight(pixelBuffer);
+        wdp.vidHeight = CVPixelBufferGetWidth(imgbufref);
+        wdp.vidWidth = CVPixelBufferGetHeight(imgbufref);
+        wdp.depthMode = wdp.vidMode = 0;
+        entry::s_ctx->m_pApplication->OnDepthBuffer(vidData, pixelData, wdp);
     }
     
 }
@@ -597,10 +602,22 @@ didOutputSynchronizedDataCollection:(AVCaptureSynchronizedDataCollection *)synch
     if (pDepthData == nil)
         return;
     
+    AVCameraCalibrationData *cameraCalibrationData =
+        [pDepthData cameraCalibrationData];
+    matrix_float3x3 cameraMatrix = [cameraCalibrationData intrinsicMatrix];
+    float mtxarray[11];
+    for (int i = 0; i < 9; ++i)
+    {
+        mtxarray[i] = cameraMatrix.columns[i/3][i%3];
+    }
+    
+    CGSize size = [cameraCalibrationData intrinsicMatrixReferenceDimensions];
+    mtxarray[9] = size.width;
+    mtxarray[10] = size.height;
+    
     CVPixelBufferRef imgBuffer = [frame capturedImage];
+
     CVPixelBufferRef depthBuffer = pDepthData.depthDataMap;
-    size_t width = CVPixelBufferGetWidth(depthBuffer);
-    size_t height = CVPixelBufferGetHeight(depthBuffer);
     if (CVPixelBufferGetPixelFormatType(imgBuffer) == kCVPixelFormatType_420YpCbCr8BiPlanarFullRange &&
         CVPixelBufferGetPixelFormatType(depthBuffer) == kCVPixelFormatType_DepthFloat32)
     {
@@ -611,13 +628,21 @@ didOutputSynchronizedDataCollection:(AVCaptureSynchronizedDataCollection *)synch
         memcpy(vidData.data(), pVidBuffer, vidData.size());
         CVPixelBufferUnlockBaseAddress(imgBuffer, kCVPixelBufferLock_ReadOnly);
     
-        CVPixelBufferLockBaseAddress(depthBuffer, kCVPixelBufferLock_ReadOnly);
+        std::vector<float> depthData(datasize / sizeof(float) +  16);
         datasize = CVPixelBufferGetDataSize(depthBuffer);
+        memcpy(depthData.data(), mtxarray, sizeof(mtxarray));
+        
+        CVPixelBufferLockBaseAddress(depthBuffer, kCVPixelBufferLock_ReadOnly);
         void *pDepthBuffer = CVPixelBufferGetBaseAddress(depthBuffer);
-        std::vector<float> depthData(datasize / sizeof(float));
-        memcpy(depthData.data(), pDepthBuffer, depthData.size());
+        memcpy(depthData.data() + 16, pDepthBuffer, depthData.size());
         CVPixelBufferUnlockBaseAddress(depthBuffer, kCVPixelBufferLock_ReadOnly);
-        entry::s_ctx->m_pApplication->OnDepthBuffer(vidData, depthData);
+        sam::Application::WriteDataProps wdp;
+        wdp.depthHeight = CVPixelBufferGetWidth(depthBuffer);
+        wdp.depthWidth = CVPixelBufferGetHeight(depthBuffer);
+        wdp.vidHeight = CVPixelBufferGetWidth(imgBuffer);
+        wdp.vidWidth = CVPixelBufferGetHeight(imgBuffer);
+        wdp.depthMode = wdp.vidMode = 0;
+        entry::s_ctx->m_pApplication->OnDepthBuffer(vidData, depthData, wdp);
     }
 }
 @end

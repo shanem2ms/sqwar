@@ -161,18 +161,27 @@ namespace sam
         m_frameIdx = bgfx::frame() + 1;
     }
 
-    void Application::WriteDepthDataToFile(const std::vector<unsigned char> &vidData, const std::vector<float> &pixelData)
+    void Application::WriteDepthDataToFile(const std::vector<unsigned char> &vidData, const std::vector<float> &pixelData, const WriteDataProps &props)
     {
         static std::fstream fs;
         if (!fs.is_open())
             fs = std::fstream(m_documentsPath + "/file.binary", std::ios::out | std::ios::binary);
-        fs.write((const char *)vidData.data(), vidData.size());
-        fs.write((const char *)pixelData.data(), pixelData.size() * sizeof(float));
+        size_t sz = sizeof(props);
+        fs.write((const char *)&sz, sizeof(size_t));
+        fs.write((const char *)&props, sz);
+        sz = vidData.size();
+        fs.write((const char *)&sz, sizeof(size_t));
+        fs.write((const char *)vidData.data(), sz);
+        sz = pixelData.size() * sizeof(float);
+        fs.write((const char *)&sz, sizeof(size_t));
+        fs.write((const char *)pixelData.data(), sz);
         fs.flush();
     }
     
-    void Application::OnDepthBuffer(const std::vector<unsigned char> &vidData, const std::vector<float>& depthData)
+    void Application::OnDepthBuffer(const std::vector<unsigned char> &vidData, const std::vector<float>& depthData,
+                                const WriteDataProps &props)
     {
+
 #ifdef DOSENDDATA
         static Client c;
         c.SendData((const unsigned char *)depthData.data(), depthData.size() *
@@ -180,7 +189,7 @@ namespace sam
 #endif
 #define DOWRITEDATA 1
 #ifdef DOWRITEDATA
-        s_pInst->WriteDepthDataToFile(vidData, depthData);
+        s_pInst->WriteDepthDataToFile(vidData, depthData, props);
 #endif
         s_pInst->m_world->OnDepthBuffer(vidData, depthData);
     }
