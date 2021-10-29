@@ -18,6 +18,12 @@ if (APPLE)
     set(BGFX_BUILD_TOOLS off)
 endif()
 
+if(${CMAKE_BUILD_TYPE} EQUAL "Debug")
+  set (BX_CONFIG_DEBUG 0)
+else()              # optional block
+  set (BX_CONFIG_DEBUG 1)
+endif()
+
 set (BGFX_INCLUDE_ROOT ${CMAKE_INSTALL_PREFIX}/include)
 set (BGFX_INCLUDE ${BGFX_INCLUDE_ROOT}/bgfx)
 set (BGFX_LIB ${CMAKE_INSTALL_PREFIX}/lib)

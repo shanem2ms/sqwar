@@ -85,7 +85,8 @@ namespace sam
         {
             uint32_t size = (uint32_t)bx::getSize(_reader);
             const bgfx::Memory* mem = bgfx::alloc(size + 1);
-            bx::read(_reader, mem->data, size);
+            bx::Error err ;
+            bx::read(_reader, mem->data, size, &err);
             bx::close(_reader);
             mem->data[mem->size - 1] = '\0';
             return mem;

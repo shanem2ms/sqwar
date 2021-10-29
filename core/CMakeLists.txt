@@ -91,4 +91,4 @@ target_include_directories(core PUBLIC
     ${BX_INC_DIR_COMPAT}
     )
 
-add_compile_definitions(DLLX=;PRId64="I64d")
+add_compile_definitions(DLLX=;PRId64="I64d";BX_CONFIG_DEBUG=${BX_CONFIG_DEBUG})

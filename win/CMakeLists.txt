@@ -46,3 +46,5 @@ target_include_directories(${PROJECT_NAME} PUBLIC
     "${BX_INC_DIR_COMPAT}"
     "${BGFX_INC_DIR}"
     )
+
+add_compile_definitions(BX_CONFIG_DEBUG=${BX_CONFIG_DEBUG})
