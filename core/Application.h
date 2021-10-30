@@ -27,6 +27,7 @@ class Application
     int m_frameIdx;
     int m_buttonDown;
     std::string m_documentsPath;
+    std::mutex m_filemtx;
     std::unique_ptr<Server> m_server;
     std::unique_ptr<Client> m_client;
     bool m_clientInit;
@@ -52,14 +53,17 @@ public:
     
     void WriteDepthDataToFile(const std::vector<unsigned char> &vidData, const std::vector<float> &pixelData,
                               const DepthDataProps &props);
+    void WriteFaceDataToFile(const std::vector<unsigned char> &faceData);
     static void OnDepthBuffer(const std::vector<unsigned char> &vidData, const std::vector<float> &pixelData,
                             const DepthDataProps& props);
+    static void OnFaceData(const std::vector<unsigned char> &faceData);
     static void SetDebugMsgFunc(void (*dbgfunc)(const char*));
     static void DebugMsg(const std::string& str);
 };
 
 struct DepthDataProps
 {
+    double timestamp;
     uint32_t vidWidth;
     uint32_t vidHeight;
     uint32_t vidMode;

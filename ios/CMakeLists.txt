@@ -110,3 +110,5 @@ target_link_libraries(${IOSAPPNAME} LINK_PUBLIC
     ${BGFX_LIB}/${CMAKE_STATIC_LIBRARY_PREFIX}bx${CMAKE_STATIC_LIBRARY_SUFFIX}
     ${PLATFORMLIBS}
        )
+
+add_compile_definitions(BX_CONFIG_DEBUG=${BX_CONFIG_DEBUG})

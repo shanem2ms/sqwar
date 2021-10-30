@@ -305,14 +305,6 @@ static    void* m_device = NULL;
 
 @end
 
-@interface AVDelegate : NSObject<AVCaptureDataOutputSynchronizerDelegate>
-{
-    AVCaptureDepthDataOutput *m_pDepthOutput;
-    AVCaptureVideoDataOutput *m_pVideoOutput;
-}
-- (id)initWithDepthOutput:(AVCaptureDepthDataOutput *)pDataOutput withVideo:(AVCaptureVideoDataOutput *)pVideoOutput;
-@end
-
 @interface ARDelegate : NSObject<ARSessionDelegate>
 {
     
@@ -325,10 +317,6 @@ static    void* m_device = NULL;
     View* m_view;
     dispatch_queue_t m_sessionQueue;
     dispatch_queue_t m_dataQueue;
-    AVCaptureSession *m_pSession;
-    AVCaptureDepthDataOutput *m_pDepthOutput;
-    AVCaptureVideoDataOutput *m_pVideoOutput;
-    AVDelegate *m_pAVDelegate;
     ARSession *m_arSession;
     ARDelegate *m_arDelegate;
 }
@@ -366,21 +354,6 @@ static    void* m_device = NULL;
 
     s_ctx = new Context((uint32_t)(scaleFactor*rect.size.width), (uint32_t)(scaleFactor*rect.size.height));
 
-    /*
-    m_dataQueue =
-        dispatch_queue_create("avqueue", nullptr);
-    m_pSession = [[AVCaptureSession alloc] init];
-    m_pDepthOutput = [[AVCaptureDepthDataOutput alloc] init];
-    m_pVideoOutput = [[AVCaptureVideoDataOutput alloc] init];
-    [AVCaptureDevice requestAccessForMediaType:AVMediaTypeVideo  completionHandler:^(BOOL granted) {
-        if (granted) {
-            //self.microphoneConsentState = PrivacyConsentStateGranted;
-        }
-        else {
-            //self.microphoneConsentState = PrivacyConsentStateDenied;
-        }
-    }];
-    */
     m_sessionQueue =
         dispatch_queue_create("sessionqueue", nullptr);
     dispatch_async(m_sessionQueue,  ^(void){
@@ -390,63 +363,6 @@ static    void* m_device = NULL;
     
     
     return YES;
-}
-
-- (void)configureSession
-{
-    AVCaptureDevice *pDevice = nullptr;
-    if (@available(iOS 11.1, *)) {
-        AVCaptureDeviceDiscoverySession *captureDevice =
-        [AVCaptureDeviceDiscoverySession
-         discoverySessionWithDeviceTypes:@[AVCaptureDeviceTypeBuiltInTrueDepthCamera]
-         mediaType:AVMediaTypeVideo
-         position:AVCaptureDevicePositionFront];
-        pDevice = captureDevice.devices.lastObject;
-    } else {
-        // Fallback on earlier versions
-    }
-    NSError *perror;
-    AVCaptureDeviceInput *pInput = [[AVCaptureDeviceInput alloc] initWithDevice:pDevice error:&perror];
-    [m_pSession beginConfiguration];
-    [m_pSession setSessionPreset:AVCaptureSessionPreset640x480];
-    [m_pSession addInput:pInput];
-    [m_pSession addOutput:m_pDepthOutput];
-    [m_pSession addOutput:m_pVideoOutput];
-    //videoDataOutput.videoSettings = [kCVPixelBufferPixelFormatTypeKey as String: Int(kCVPixelFormatType_32BGRA)]
-    NSDictionary *rgbOutputSettings = [NSDictionary dictionaryWithObject:
-     [NSNumber numberWithInt:kCMPixelFormat_32BGRA] forKey:(id)kCVPixelBufferPixelFormatTypeKey];
-    [m_pVideoOutput setVideoSettings:rgbOutputSettings];
-    [m_pDepthOutput setFilteringEnabled:true];
-    AVCaptureConnection *pDepthConnection = [m_pDepthOutput connectionWithMediaType:AVMediaTypeDepthData];
-    [pDepthConnection setEnabled:true];
-    NSArray<AVCaptureDeviceFormat *> *depthFormats = [[pDevice activeFormat] supportedDepthDataFormats];
-    unsigned long cnt = [depthFormats count];
-    unsigned long foundIdx = -1;
-    int maxwidth = 0;
-    for (unsigned long fidx = 0; fidx < cnt; fidx++)
-    {
-        if (CMFormatDescriptionGetMediaSubType([depthFormats[fidx] formatDescription]) == kCVPixelFormatType_DepthFloat32)
-        {
-            int w = CMVideoFormatDescriptionGetDimensions([depthFormats[fidx] formatDescription]).width;
-            if (w > maxwidth)
-            {
-                foundIdx = fidx;
-                maxwidth = w;
-            }
-        }
-    }
-    
-    [pDevice lockForConfiguration:&perror];
-    [pDevice setActiveDepthDataFormat:depthFormats[foundIdx]];
-    [pDevice unlockForConfiguration];
-    AVCaptureDataOutputSynchronizer *pOutputSyncronizer =
-        [[AVCaptureDataOutputSynchronizer alloc] initWithDataOutputs:@[m_pDepthOutput, m_pVideoOutput]];
-    
-    m_pAVDelegate = [[AVDelegate alloc] initWithDepthOutput:m_pDepthOutput withVideo:m_pVideoOutput];
-    [pOutputSyncronizer setDelegate:m_pAVDelegate queue:m_dataQueue];
-    [m_pSession commitConfiguration];
-    
-    [m_pSession startRunning];
 }
 
 - (void)configureARSession
@@ -524,75 +440,13 @@ int main(int _argc, char * _argv[])
     return exitCode;
 }
 
-@implementation AVDelegate
-
-- (id)initWithDepthOutput:(AVCaptureDepthDataOutput *)pDataOutput withVideo:(AVCaptureVideoDataOutput *)pVideoOutput
+struct YCrCbData
 {
-    self = [super init];
-    m_pDepthOutput = pDataOutput;
-    m_pVideoOutput = pVideoOutput;
-    return self;
-}
-
-- (void * _Nullable)extracted:(CVImageBufferRef)imgbufref {
-    return CVPixelBufferGetBaseAddress(imgbufref);
-}
-
-- (void)dataOutputSynchronizer:(AVCaptureDataOutputSynchronizer *)synchronizer
-didOutputSynchronizedDataCollection:(AVCaptureSynchronizedDataCollection *)synchronizedDataCollection
-{
-    AVCaptureSynchronizedSampleBufferData *pVidSync =
-        (AVCaptureSynchronizedSampleBufferData *)[synchronizedDataCollection synchronizedDataForCaptureOutput:m_pVideoOutput];
-    AVCaptureSynchronizedDepthData *pSyncData =
-        (AVCaptureSynchronizedDepthData *)[synchronizedDataCollection synchronizedDataForCaptureOutput:m_pDepthOutput];
-    if (pSyncData.depthDataWasDropped || pVidSync.sampleBufferWasDropped)
-        return;
-    
-    CMSampleBufferRef sbufferref = pVidSync.sampleBuffer;
-    CVImageBufferRef imgbufref = CMSampleBufferGetImageBuffer(sbufferref);
-    CMFormatDescriptionRef fmtref = CMSampleBufferGetFormatDescription(sbufferref);
-    
-    AVDepthData *pDepthData = pSyncData.depthData;
-    AVCameraCalibrationData *cameraCalibrationData =
-        [pDepthData cameraCalibrationData];
-    matrix_float3x3 cameraMatrix = [cameraCalibrationData intrinsicMatrix];
-    float mtxarray[11];
-    for (int i = 0; i < 9; ++i)
-    {
-        mtxarray[i] = cameraMatrix.columns[i/3][i%3];
-    }
-    
-    CGSize size = [cameraCalibrationData intrinsicMatrixReferenceDimensions];
-    mtxarray[9] = size.width;
-    mtxarray[10] = size.height;
-    CVPixelBufferRef pixelBuffer = pDepthData.depthDataMap;
-
-    if (kCVPixelFormatType_DepthFloat32 == CVPixelBufferGetPixelFormatType(pixelBuffer))
-    {
-        std::vector<float> pixelData(640*480 + 16);
-        std::vector<unsigned char> vidData(640*480*4);
-        memcpy(pixelData.data(), mtxarray, sizeof(mtxarray));
-        CVPixelBufferLockBaseAddress(pixelBuffer, kCVPixelBufferLock_ReadOnly);
-        void *pBuffer = CVPixelBufferGetBaseAddress(pixelBuffer);
-        memcpy(pixelData.data() + 16, pBuffer, pixelData.size() * sizeof(float));
-        CVPixelBufferUnlockBaseAddress(pixelBuffer, kCVPixelBufferLock_ReadOnly);
-        CVPixelBufferLockBaseAddress(imgbufref, kCVPixelBufferLock_ReadOnly);
-        size_t datasize = CVPixelBufferGetDataSize(imgbufref);
-        void *pVidBuffer = [self extracted:imgbufref];
-        memcpy(vidData.data(), pVidBuffer, vidData.size());
-        CVPixelBufferUnlockBaseAddress(imgbufref, kCVPixelBufferLock_ReadOnly);
-        sam::Application::DepthDataProps wdp;
-        wdp.depthHeight = CVPixelBufferGetWidth(pixelBuffer);
-        wdp.depthWidth = CVPixelBufferGetHeight(pixelBuffer);
-        wdp.vidHeight = CVPixelBufferGetWidth(imgbufref);
-        wdp.vidWidth = CVPixelBufferGetHeight(imgbufref);
-        wdp.depthMode = wdp.vidMode = 0;
-        entry::s_ctx->m_pApplication->OnDepthBuffer(vidData, pixelData, wdp);
-    }
-    
-}
-
-@end
+    int yOffset;
+    int yRowBytes;
+    int cbCrOffset;
+    int cbCrRowBytes;
+};
 
 @implementation ARDelegate
 - (void)session:(ARSession *)session
@@ -624,8 +478,18 @@ didOutputSynchronizedDataCollection:(AVCaptureSynchronizedDataCollection *)synch
         CVPixelBufferLockBaseAddress(imgBuffer, kCVPixelBufferLock_ReadOnly);
         size_t datasize = CVPixelBufferGetDataSize(imgBuffer);
         void *pVidBuffer = CVPixelBufferGetBaseAddress(imgBuffer);
-        std::vector<unsigned char> vidData(datasize);
-        memcpy(vidData.data(), pVidBuffer, vidData.size());
+        CVPlanarPixelBufferInfo_YCbCrBiPlanar *bufferInfo = (CVPlanarPixelBufferInfo_YCbCrBiPlanar *)pVidBuffer;
+        YCrCbData cbd;
+        // Get the offsets and bytes per row.
+        cbd.yOffset =  CFSwapInt32BigToHost(bufferInfo->componentInfoY.offset);
+        cbd.yRowBytes = CFSwapInt32BigToHost(bufferInfo->componentInfoY.rowBytes);
+        cbd.cbCrOffset = CFSwapInt32BigToHost(bufferInfo->componentInfoCbCr.offset);
+        cbd.cbCrRowBytes = CFSwapInt32BigToHost(bufferInfo->componentInfoCbCr.rowBytes);
+        
+        
+        std::vector<unsigned char> vidData(datasize - cbd.yOffset + sizeof(YCrCbData));
+        memcpy(vidData.data(), &cbd, + sizeof(YCrCbData));
+        memcpy(vidData.data() + + sizeof(YCrCbData), ((char *)pVidBuffer) + cbd.yOffset, vidData.size());
         CVPixelBufferUnlockBaseAddress(imgBuffer, kCVPixelBufferLock_ReadOnly);
     
         datasize = CVPixelBufferGetDataSize(depthBuffer);
@@ -634,15 +498,65 @@ didOutputSynchronizedDataCollection:(AVCaptureSynchronizedDataCollection *)synch
         
         CVPixelBufferLockBaseAddress(depthBuffer, kCVPixelBufferLock_ReadOnly);
         void *pDepthBuffer = CVPixelBufferGetBaseAddress(depthBuffer);
-        memcpy(depthData.data() + 16, pDepthBuffer, depthData.size());
+        memcpy(depthData.data() + 16, pDepthBuffer, depthData.size() * sizeof(float));
         CVPixelBufferUnlockBaseAddress(depthBuffer, kCVPixelBufferLock_ReadOnly);
-        sam::Application::DepthDataProps wdp;
-        wdp.depthHeight = CVPixelBufferGetWidth(depthBuffer);
-        wdp.depthWidth = CVPixelBufferGetHeight(depthBuffer);
-        wdp.vidHeight = CVPixelBufferGetWidth(imgBuffer);
-        wdp.vidWidth = CVPixelBufferGetHeight(imgBuffer);
+        sam::DepthDataProps wdp;
+        wdp.timestamp = frame.timestamp;
+        wdp.depthWidth = CVPixelBufferGetWidth(depthBuffer);
+        wdp.depthHeight = CVPixelBufferGetHeight(depthBuffer);
+        wdp.vidWidth = CVPixelBufferGetWidth(imgBuffer);
+        wdp.vidHeight = CVPixelBufferGetHeight(imgBuffer);
         wdp.depthMode = wdp.vidMode = 0;
         entry::s_ctx->m_pApplication->OnDepthBuffer(vidData, depthData, wdp);
+    }
+}
+
+void GetMat(const simd_float4x4 &m, float f[16] )
+{
+    for (int i = 0; i < 16; ++i)
+    {
+        f[i] = m.columns[i/4][i%4];
+    }
+}
+- (void)session:(ARSession *)session
+didUpdateAnchors:(NSArray<__kindof ARAnchor *> *)anchors
+{
+    for (int idx = 0; idx < anchors.count; ++idx)
+    {
+        if ([anchors[idx] isKindOfClass:[ARFaceAnchor class]])
+        {
+            std::vector<unsigned char> facedata;
+            NSTimeInterval ti = session.currentFrame.timestamp;
+            facedata.insert(facedata.begin(), &ti, &ti+1);
+            ARFaceAnchor *faceAnchor = (ARFaceAnchor *)anchors[idx];
+            ARFaceGeometry *faceGmt = (ARFaceGeometry *)faceAnchor.geometry;
+            ARCamera *camera = session.currentFrame.camera;
+            simd_float4x4 viewMat = [camera viewMatrixForOrientation:(UIInterfaceOrientationPortrait)];
+            simd_float4x4 projMat = [camera projectionMatrixForOrientation:(UIInterfaceOrientationPortrait) viewportSize:(CGSize {480, 640 }) zNear:(0.1f) zFar:(10.0f)];
+            float viewMatf[16], wMatf[16], projMatf[16];
+            GetMat(viewMat, viewMatf);
+            GetMat(faceAnchor.transform, wMatf);
+            GetMat(projMat, projMatf);
+            facedata.insert(facedata.end(), wMatf, wMatf + 16);
+            facedata.insert(facedata.end(), viewMatf, viewMatf + 16);
+            facedata.insert(facedata.end(), projMatf, projMatf + 16);
+            const simd_float3 *pvertices = faceGmt.vertices;
+            unsigned long count = faceGmt.vertexCount;
+            facedata.insert(facedata.end(), &count, &count + 1);
+            for (int idx = 0; idx < count; ++idx)
+            {
+                float v[3];
+                v[0] = pvertices[idx][0];
+                v[1] = pvertices[idx][1];
+                v[2] = pvertices[idx][2];
+                facedata.insert(facedata.end(), v, v+3);
+            }
+            count = faceGmt.triangleCount * 3;
+            facedata.insert(facedata.end(), &count, &count + 1);
+            const int16_t *indices = faceGmt.triangleIndices;
+            facedata.insert(facedata.end(), indices, indices + count);
+            entry::s_ctx->m_pApplication->OnFaceData(facedata);
+        }
     }
 }
 @end

@@ -161,21 +161,41 @@ namespace sam
         m_frameIdx = bgfx::frame() + 1;
     }
 
-    void Application::WriteDepthDataToFile(const std::vector<unsigned char> &vidData, const std::vector<float> &pixelData, const DepthDataProps &props)
+    void WriteFileData(const std::string &path, const char *data, size_t sz)
     {
-        static std::fstream fs;
-        if (!fs.is_open())
-            fs = std::fstream(m_documentsPath + "/file.binary", std::ios::out | std::ios::binary);
-        size_t sz = sizeof(props);
-        fs.write((const char *)&sz, sizeof(size_t));
-        fs.write((const char *)&props, sz);
-        sz = vidData.size();
-        fs.write((const char *)&sz, sizeof(size_t));
-        fs.write((const char *)vidData.data(), sz);
-        sz = pixelData.size() * sizeof(float);
-        fs.write((const char *)&sz, sizeof(size_t));
-        fs.write((const char *)pixelData.data(), sz);
-        fs.flush();
+           static std::fstream fs;
+           if (!fs.is_open())
+               fs = std::fstream(path + "/file.binary", std::ios::out | std::ios::binary);
+           fs.write((const char *)&sz, sizeof(size_t));
+           fs.write((const char *)data, sz);
+    }
+    template <typename T> void WriteFileData(const std::string &path, const T *data, size_t sz)
+    {
+        WriteFileData(path, (const char *)data, sz);
+    }
+    template<typename T> void WriteFileData(const std::string &path, const std::vector<T> &data)
+    {
+        size_t sz = data.size() * sizeof(T);
+        WriteFileData(path, (const char *)data.data(), sz);
+    }
+    void Application::WriteDepthDataToFile(const std::vector<unsigned char> &vidData, const std::vector<float> &depthData, const DepthDataProps &props)
+    {
+        m_filemtx.lock();
+        size_t val = 1234;
+        WriteFileData(m_documentsPath, &val, sizeof(val));
+        WriteFileData(m_documentsPath, &props, sizeof(props));
+        WriteFileData(m_documentsPath, vidData);
+        WriteFileData(m_documentsPath, depthData);
+        m_filemtx.unlock();
+    }
+    
+    void Application::WriteFaceDataToFile(const std::vector<unsigned char> &faceData)
+    {
+        m_filemtx.lock();
+        size_t val = 5678;
+        WriteFileData(m_documentsPath, &val, sizeof(val));
+        WriteFileData(m_documentsPath, faceData);
+        m_filemtx.unlock();
     }
     
     void Application::OnDepthBuffer(const std::vector<unsigned char> &vidData, const std::vector<float>& depthData,
@@ -192,6 +212,11 @@ namespace sam
         s_pInst->WriteDepthDataToFile(vidData, depthData, props);
 #endif
         s_pInst->m_world->OnDepthBuffer(vidData, depthData, props);
+    }
+
+    void Application::OnFaceData(const std::vector<unsigned char> &faceData)
+    {
+        s_pInst->WriteFaceDataToFile(faceData);
     }
     Application::~Application()
     {

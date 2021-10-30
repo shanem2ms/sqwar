@@ -3,7 +3,6 @@
  * License: https://github.com/bkaradzic/bgfx#license-bsd-2-clause
  */
 
-#include "common.h"
 
 #include <tinystl/allocator.h>
 #include <tinystl/vector.h>
@@ -16,12 +15,12 @@ namespace stl = tinystl;
 #include <bx/math.h>
 #include <bx/readerwriter.h>
 #include <bx/string.h>
-#include "entry/entry.h"
-#include <meshoptimizer/src/meshoptimizer.h>
+#include "entry.h"
 
 #include "bgfx_utils.h"
 
 #include <bimg/decode.h>
+#define DBG(a, b)
 
 void* load(bx::FileReaderI* _reader, bx::AllocatorI* _allocator, const char* _filePath, uint32_t* _size)
 {
@@ -36,10 +35,6 @@ void* load(bx::FileReaderI* _reader, bx::AllocatorI* _allocator, const char* _fi
 			*_size = size;
 		}
 		return data;
-	}
-	else
-	{
-		DBG("Failed to open: %s.", _filePath);
 	}
 
 	if (NULL != _size)
@@ -380,170 +375,7 @@ namespace bgfx
 
 void Mesh::load(bx::ReaderSeekerI* _reader, bool _ramcopy)
 {
-	constexpr uint32_t kChunkVertexBuffer           = BX_MAKEFOURCC('V', 'B', ' ', 0x1);
-	constexpr uint32_t kChunkVertexBufferCompressed = BX_MAKEFOURCC('V', 'B', 'C', 0x0);
-	constexpr uint32_t kChunkIndexBuffer            = BX_MAKEFOURCC('I', 'B', ' ', 0x0);
-	constexpr uint32_t kChunkIndexBufferCompressed  = BX_MAKEFOURCC('I', 'B', 'C', 0x1);
-	constexpr uint32_t kChunkPrimitive              = BX_MAKEFOURCC('P', 'R', 'I', 0x0);
 
-	using namespace bx;
-	using namespace bgfx;
-
-	Group group;
-
-	bx::AllocatorI* allocator = entry::getAllocator();
-
-	uint32_t chunk;
-	bx::Error err;
-	while (4 == bx::read(_reader, chunk, &err)
-	   &&  err.isOk() )
-	{
-		switch (chunk)
-		{
-			case kChunkVertexBuffer:
-			{
-				read(_reader, group.m_sphere, &err);
-				read(_reader, group.m_aabb, &err);
-				read(_reader, group.m_obb, &err);
-
-				read(_reader, m_layout, &err);
-
-				uint16_t stride = m_layout.getStride();
-
-				read(_reader, group.m_numVertices, &err);
-				const bgfx::Memory* mem = bgfx::alloc(group.m_numVertices*stride);
-				read(_reader, mem->data, mem->size, &err);
-
-				if (_ramcopy)
-				{
-					group.m_vertices = (uint8_t*)BX_ALLOC(allocator, group.m_numVertices*stride);
-					bx::memCopy(group.m_vertices, mem->data, mem->size);
-				}
-
-				group.m_vbh = bgfx::createVertexBuffer(mem, m_layout);
-			}
-				break;
-
-			case kChunkVertexBufferCompressed:
-			{
-				read(_reader, group.m_sphere, &err);
-				read(_reader, group.m_aabb, &err);
-				read(_reader, group.m_obb, &err);
-
-				read(_reader, m_layout, &err);
-
-				uint16_t stride = m_layout.getStride();
-
-				read(_reader, group.m_numVertices, &err);
-
-				const bgfx::Memory* mem = bgfx::alloc(group.m_numVertices*stride);
-
-				uint32_t compressedSize;
-				bx::read(_reader, compressedSize, &err);
-
-				void* compressedVertices = BX_ALLOC(allocator, compressedSize);
-				bx::read(_reader, compressedVertices, compressedSize, &err);
-
-				meshopt_decodeVertexBuffer(mem->data, group.m_numVertices, stride, (uint8_t*)compressedVertices, compressedSize);
-
-				BX_FREE(allocator, compressedVertices);
-
-				if (_ramcopy)
-				{
-					group.m_vertices = (uint8_t*)BX_ALLOC(allocator, group.m_numVertices*stride);
-					bx::memCopy(group.m_vertices, mem->data, mem->size);
-				}
-
-				group.m_vbh = bgfx::createVertexBuffer(mem, m_layout);
-			}
-				break;
-
-			case kChunkIndexBuffer:
-			{
-				read(_reader, group.m_numIndices, &err);
-
-				const bgfx::Memory* mem = bgfx::alloc(group.m_numIndices*2);
-				read(_reader, mem->data, mem->size, &err);
-
-				if (_ramcopy)
-				{
-					group.m_indices = (uint16_t*)BX_ALLOC(allocator, group.m_numIndices*2);
-					bx::memCopy(group.m_indices, mem->data, mem->size);
-				}
-
-				group.m_ibh = bgfx::createIndexBuffer(mem);
-			}
-				break;
-
-			case kChunkIndexBufferCompressed:
-			{
-				bx::read(_reader, group.m_numIndices, &err);
-
-				const bgfx::Memory* mem = bgfx::alloc(group.m_numIndices*2);
-
-				uint32_t compressedSize;
-				bx::read(_reader, compressedSize, &err);
-
-				void* compressedIndices = BX_ALLOC(allocator, compressedSize);
-
-				bx::read(_reader, compressedIndices, compressedSize, &err);
-
-				meshopt_decodeIndexBuffer(mem->data, group.m_numIndices, 2, (uint8_t*)compressedIndices, compressedSize);
-
-				BX_FREE(allocator, compressedIndices);
-
-				if (_ramcopy)
-				{
-					group.m_indices = (uint16_t*)BX_ALLOC(allocator, group.m_numIndices*2);
-					bx::memCopy(group.m_indices, mem->data, mem->size);
-				}
-
-				group.m_ibh = bgfx::createIndexBuffer(mem);
-			}
-				break;
-
-			case kChunkPrimitive:
-			{
-				uint16_t len;
-				read(_reader, len, &err);
-
-				stl::string material;
-				material.resize(len);
-				read(_reader, const_cast<char*>(material.c_str() ), len, &err);
-
-				uint16_t num;
-				read(_reader, num, &err);
-
-				for (uint32_t ii = 0; ii < num; ++ii)
-				{
-					read(_reader, len, &err);
-
-					stl::string name;
-					name.resize(len);
-					read(_reader, const_cast<char*>(name.c_str() ), len, &err);
-
-					Primitive prim;
-					read(_reader, prim.m_startIndex, &err);
-					read(_reader, prim.m_numIndices, &err);
-					read(_reader, prim.m_startVertex, &err);
-					read(_reader, prim.m_numVertices, &err);
-					read(_reader, prim.m_sphere, &err);
-					read(_reader, prim.m_aabb, &err);
-					read(_reader, prim.m_obb, &err);
-
-					group.m_prims.push_back(prim);
-				}
-
-				m_groups.push_back(group);
-				group.reset();
-			}
-				break;
-
-			default:
-				DBG("%08x at %d", chunk, bx::skip(_reader, 0) );
-				break;
-		}
-	}
 }
 
 void Mesh::unload()
