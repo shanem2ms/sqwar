@@ -527,7 +527,7 @@ didUpdateAnchors:(NSArray<__kindof ARAnchor *> *)anchors
         {
             std::vector<unsigned char> facedata;
             NSTimeInterval ti = session.currentFrame.timestamp;
-            facedata.insert(facedata.begin(), &ti, &ti+1);
+            facedata.insert(facedata.end(), &ti, &ti+1);
             ARFaceAnchor *faceAnchor = (ARFaceAnchor *)anchors[idx];
             ARFaceGeometry *faceGmt = (ARFaceGeometry *)faceAnchor.geometry;
             ARCamera *camera = session.currentFrame.camera;

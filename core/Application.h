@@ -4,6 +4,7 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include <mutex>
 #include "gmtl/Vec.h"
 
 namespace sam
@@ -15,6 +16,7 @@ struct DrawContext;
 class Server;
 class Client;
 struct DepthDataProps;
+struct FaceDataProps;
 
 class Application
 {
@@ -56,7 +58,7 @@ public:
     void WriteFaceDataToFile(const std::vector<unsigned char> &faceData);
     static void OnDepthBuffer(const std::vector<unsigned char> &vidData, const std::vector<float> &pixelData,
                             const DepthDataProps& props);
-    static void OnFaceData(const std::vector<unsigned char> &faceData);
+    static void OnFaceData(const FaceDataProps &props);
     static void SetDebugMsgFunc(void (*dbgfunc)(const char*));
     static void DebugMsg(const std::string& str);
 };
@@ -70,5 +72,13 @@ struct DepthDataProps
     uint32_t depthWidth;
     uint32_t depthHeight;
     uint32_t depthMode;
+};
+
+struct FaceDataProps
+{
+    //double timestamp;
+    float viewMatf[16];
+    float wMatf[16];
+    float projMatf[16];
 };
 }

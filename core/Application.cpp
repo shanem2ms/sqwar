@@ -207,16 +207,17 @@ namespace sam
         c.SendData((const unsigned char *)depthData.data(), depthData.size() *
                            sizeof(float));
 #endif
-#define DOWRITEDATA 1
 #ifdef DOWRITEDATA
         s_pInst->WriteDepthDataToFile(vidData, depthData, props);
 #endif
         s_pInst->m_world->OnDepthBuffer(vidData, depthData, props);
     }
 
-    void Application::OnFaceData(const std::vector<unsigned char> &faceData)
+    void Application::OnFaceData(const FaceDataProps& props)
     {
+#ifdef DOWRITEDATA
         s_pInst->WriteFaceDataToFile(faceData);
+#endif
     }
     Application::~Application()
     {

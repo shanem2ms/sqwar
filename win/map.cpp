@@ -273,32 +273,58 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 #define SENDFRAMES 1
 
+
+void ReadNextBlock(std::vector<unsigned char>& data)
+{
+    static std::fstream s_binfile;
+    if (!s_binfile.is_open())
+        s_binfile = std::fstream("C:\\homep4\\\sqwar\\file.binary", std::ios::binary | std::ios::in);
+    size_t sz = 0;
+    s_binfile.read((char*)&sz, sizeof(sz));
+    data.resize(sz);
+    s_binfile.read((char*)data.data(), sz);
+
+    if (s_binfile.eof())
+    {
+        s_binfile.clear();
+        s_binfile.seekg(0, s_binfile.beg);
+    }
+}
+
+
 void Tick()
 {
     if (!bgfxInit)
         return;
 
 #ifdef SENDFRAMES
-    static std::fstream s_binfile;
-    if (!s_binfile.is_open())
-        s_binfile = std::fstream("C:\\homep4\\\sqwar\\file.binary", std::ios::binary | std::ios::in);
 
-    size_t sz = 0;
-    s_binfile.read((char*)&sz, sizeof(sz));
-    sam::DepthDataProps wdp;
-    s_binfile.read((char*)&wdp, sz);
-    s_binfile.read((char*)&sz, sizeof(sz));
-    std::vector<unsigned char> viddata(sz);
-    s_binfile.read((char*)viddata.data(), sz);
-    s_binfile.read((char*)&sz, sizeof(sz));
-    std::vector<float> data(sz / sizeof(float));
-    s_binfile.read((char*)data.data(), sz);
-    if (s_binfile.eof())
+    std::vector<unsigned char> data;
+    ReadNextBlock(data);
+    if (data.size() == 8)
     {
-        s_binfile.clear();
-        s_binfile.seekg(0, s_binfile.beg);
+        size_t val = *(size_t*)data.data();
+        if (val == 1234)
+        {
+            ReadNextBlock(data);
+            sam::DepthDataProps props;
+            memcpy(&props, data.data(), data.size());
+            std::vector<unsigned char> vidData;
+            ReadNextBlock(vidData);
+            std::vector<unsigned char> ddata;
+            ReadNextBlock(ddata);
+            std::vector<float> depthData(ddata.size() / sizeof(float));
+            memcpy(depthData.data(), ddata.data(), ddata.size());
+            app.OnDepthBuffer(vidData, depthData, props);
+        }
+        else if (val == 5678)
+        {
+            ReadNextBlock(data);
+            sam::FaceDataProps fdp;
+            memcpy(&fdp, data.data(), sizeof(fdp));
+            app.OnFaceData(fdp);
+        }
     }
-    app.OnDepthBuffer(viddata, data, wdp);
 #endif
     LARGE_INTEGER cur;
     QueryPerformanceCounter(&cur);
