@@ -199,7 +199,7 @@ namespace sam
         WriteFileData(m_documentsPath, indices);
         m_filemtx.unlock();
     }
-#define DOWRITEDATA 1
+//#define DOWRITEDATA 1
     
     void Application::OnDepthBuffer(const std::vector<unsigned char> &vidData, const std::vector<float>& depthData,
                                 const DepthDataProps &props)
@@ -221,6 +221,7 @@ namespace sam
 #ifdef DOWRITEDATA
         s_pInst->WriteFaceDataToFile(props, vertices, indices);
 #endif
+        s_pInst->m_world->OnFaceData(props, vertices, indices);
     }
     Application::~Application()
     {

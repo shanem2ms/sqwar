@@ -57,7 +57,7 @@ namespace sam
         float ratioY = floatArray[10] / depthHeight;
         float xScl = floatArray[0] / ratioX;
         float yScl = floatArray[4] / ratioY;
-        float xOff = floatArray[6] / ratioX + 30;
+        float xOff = floatArray[6] / ratioX;
         float yOff = floatArray[7] / ratioY;
 
         YCrCbData* yuvData = (YCrCbData*)vdata;

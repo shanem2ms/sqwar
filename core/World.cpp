@@ -5,6 +5,9 @@
 #include <numeric>
 #include "Mesh.h"
 #include "gmtl/PlaneOps.h"
+#include "PtsVis.h"
+#include "PlanesVis.h"
+#include "FaceVis.h"
 
 
 #define NOMINMAX
@@ -194,6 +197,7 @@ namespace sam
             m_worldGroup->Clear();
             m_planevis = nullptr;
             m_ptsvis = nullptr;
+            m_facevis = nullptr;
             if (m_mode & 1)
             {
                 m_planevis = std::make_shared<PlanesVis>();
@@ -201,6 +205,8 @@ namespace sam
             }
             if (m_mode & 2)
             {
+                m_facevis = std::make_shared<FaceVis>();
+                m_worldGroup->AddItem(m_facevis);
                 m_ptsvis = std::make_shared<PtsVis>();
                 m_worldGroup->AddItem(m_ptsvis);
             }
@@ -239,6 +245,15 @@ namespace sam
             if (m_ptsvis)
                 m_ptsvis->SetDepthData(
                 vidData.data(), vidData.size(), depthData, props);
+        }
+    }
+
+    void World::OnFaceData(const FaceDataProps& props, const std::vector<float>& vertices, const std::vector<int16_t> indices)
+    {
+        if (!isPaused)
+        {
+            if (m_facevis)
+                m_facevis->OnFaceData(props, vertices, indices);
         }
     }
 

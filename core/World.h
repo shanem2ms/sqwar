@@ -2,8 +2,6 @@
 #include <map>
 #include <set>
 #include "SceneItem.h"
-#include "PtsVis.h"
-#include "PlanesVis.h"
 
 class SimplexNoise;
 namespace sam
@@ -14,6 +12,10 @@ namespace sam
     class Touch;
     class TargetCube;
     struct DepthDataProps;
+    struct FaceDataProps;
+    class FaceVis;
+    class PtsVis;
+    class PlanesVis;
 
     class World
     {
@@ -28,13 +30,14 @@ namespace sam
         bgfx::ProgramHandle m_shader;     
         std::shared_ptr<PlanesVis> m_planevis;
         std::shared_ptr<PtsVis> m_ptsvis;
+        std::shared_ptr<FaceVis> m_facevis;
         int m_mode;
         int m_prevMode;
     public:
 
 
         void OnDepthBuffer(const std::vector<unsigned char>& vidData, const std::vector<float>& depthData, const DepthDataProps &props);
-
+        void OnFaceData(const FaceDataProps& props, const std::vector<float>& vertices, const std::vector<int16_t> indices);
         void Layout(int w, int h);
         World();
         ~World();

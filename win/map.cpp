@@ -322,7 +322,13 @@ void Tick()
             ReadNextBlock(data);
             sam::FaceDataProps fdp;
             memcpy(&fdp, data.data(), sizeof(fdp));
-            app.OnFaceData(fdp);
+            ReadNextBlock(data);
+            std::vector<float> vertices(data.size() / sizeof(float));
+            memcpy(vertices.data(), data.data(), data.size());
+            ReadNextBlock(data);
+            std::vector<int16_t> indices(data.size() / sizeof(int16_t));
+            memcpy(indices.data(), data.data(), data.size());
+            app.OnFaceData(fdp, vertices, indices);
         }
     }
 #endif
