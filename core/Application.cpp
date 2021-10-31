@@ -189,14 +189,17 @@ namespace sam
         m_filemtx.unlock();
     }
     
-    void Application::WriteFaceDataToFile(const std::vector<unsigned char> &faceData)
+    void Application::WriteFaceDataToFile(const FaceDataProps &props, const std::vector<float> &vertices, const std::vector<int16_t> indices)
     {
         m_filemtx.lock();
         size_t val = 5678;
         WriteFileData(m_documentsPath, &val, sizeof(val));
-        WriteFileData(m_documentsPath, faceData);
+        WriteFileData(m_documentsPath, &props, sizeof(props));
+        WriteFileData(m_documentsPath, vertices);
+        WriteFileData(m_documentsPath, indices);
         m_filemtx.unlock();
     }
+#define DOWRITEDATA 1
     
     void Application::OnDepthBuffer(const std::vector<unsigned char> &vidData, const std::vector<float>& depthData,
                                 const DepthDataProps &props)
@@ -213,10 +216,10 @@ namespace sam
         s_pInst->m_world->OnDepthBuffer(vidData, depthData, props);
     }
 
-    void Application::OnFaceData(const FaceDataProps& props)
+    void Application::OnFaceData(const FaceDataProps &props, const std::vector<float> &vertices, const std::vector<int16_t> indices)
     {
 #ifdef DOWRITEDATA
-        s_pInst->WriteFaceDataToFile(faceData);
+        s_pInst->WriteFaceDataToFile(props, vertices, indices);
 #endif
     }
     Application::~Application()

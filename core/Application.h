@@ -55,10 +55,12 @@ public:
     
     void WriteDepthDataToFile(const std::vector<unsigned char> &vidData, const std::vector<float> &pixelData,
                               const DepthDataProps &props);
-    void WriteFaceDataToFile(const std::vector<unsigned char> &faceData);
+    void WriteFaceDataToFile(const FaceDataProps &props, const std::vector<float> &vertices,
+                             const std::vector<int16_t> indices);
     static void OnDepthBuffer(const std::vector<unsigned char> &vidData, const std::vector<float> &pixelData,
                             const DepthDataProps& props);
-    static void OnFaceData(const FaceDataProps &props);
+    static void OnFaceData(const FaceDataProps &props, const std::vector<float> &vertices,
+                           const std::vector<int16_t> indices);
     static void SetDebugMsgFunc(void (*dbgfunc)(const char*));
     static void DebugMsg(const std::string& str);
 };
@@ -76,7 +78,7 @@ struct DepthDataProps
 
 struct FaceDataProps
 {
-    //double timestamp;
+    double timestamp;
     float viewMatf[16];
     float wMatf[16];
     float projMatf[16];

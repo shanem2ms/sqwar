@@ -525,37 +525,30 @@ didUpdateAnchors:(NSArray<__kindof ARAnchor *> *)anchors
     {
         if ([anchors[idx] isKindOfClass:[ARFaceAnchor class]])
         {
-            std::vector<unsigned char> facedata;
-            NSTimeInterval ti = session.currentFrame.timestamp;
-            facedata.insert(facedata.end(), &ti, &ti+1);
+            sam::FaceDataProps fdp;
+            fdp.timestamp = session.currentFrame.timestamp;
             ARFaceAnchor *faceAnchor = (ARFaceAnchor *)anchors[idx];
             ARFaceGeometry *faceGmt = (ARFaceGeometry *)faceAnchor.geometry;
             ARCamera *camera = session.currentFrame.camera;
             simd_float4x4 viewMat = [camera viewMatrixForOrientation:(UIInterfaceOrientationPortrait)];
             simd_float4x4 projMat = [camera projectionMatrixForOrientation:(UIInterfaceOrientationPortrait) viewportSize:(CGSize {480, 640 }) zNear:(0.1f) zFar:(10.0f)];
-            float viewMatf[16], wMatf[16], projMatf[16];
-            GetMat(viewMat, viewMatf);
-            GetMat(faceAnchor.transform, wMatf);
-            GetMat(projMat, projMatf);
-            facedata.insert(facedata.end(), wMatf, wMatf + 16);
-            facedata.insert(facedata.end(), viewMatf, viewMatf + 16);
-            facedata.insert(facedata.end(), projMatf, projMatf + 16);
+            GetMat(viewMat, fdp.viewMatf);
+            GetMat(faceAnchor.transform, fdp.wMatf);
+            GetMat(projMat, fdp.projMatf);
+            std::vector<float> vertices;
             const simd_float3 *pvertices = faceGmt.vertices;
-            unsigned long count = faceGmt.vertexCount;
-            facedata.insert(facedata.end(), &count, &count + 1);
+            int count = faceGmt.vertexCount;
             for (int idx = 0; idx < count; ++idx)
             {
-                float v[3];
-                v[0] = pvertices[idx][0];
-                v[1] = pvertices[idx][1];
-                v[2] = pvertices[idx][2];
-                facedata.insert(facedata.end(), v, v+3);
+                vertices.push_back(pvertices[idx][0]);
+                vertices.push_back(pvertices[idx][1]);
+                vertices.push_back(pvertices[idx][2]);
             }
+            std::vector<int16_t> indexvec;
             count = faceGmt.triangleCount * 3;
-            facedata.insert(facedata.end(), &count, &count + 1);
             const int16_t *indices = faceGmt.triangleIndices;
-            facedata.insert(facedata.end(), indices, indices + count);
-            entry::s_ctx->m_pApplication->OnFaceData(facedata);
+            indexvec.insert(indexvec.end(), indices, indices + count);
+            entry::s_ctx->m_pApplication->OnFaceData(fdp, vertices, indexvec);
         }
     }
 }
