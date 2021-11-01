@@ -33,8 +33,15 @@ namespace sam
     {
         std::vector<float> v = vertices;
         std::vector<int16_t> i = indices;
+        Matrix44f wm, vm;
+        wm.mState = Matrix44f::AFFINE;;
+        vm.mState = Matrix44f::AFFINE;
+        memcpy(wm.mData, props.wMatf, sizeof(props.wMatf));
+        memcpy(vm.mData, props.viewMatf, sizeof(props.viewMatf));
+        wm = vm* wm;
+
         m_ptsmtx.lock();
-        memcpy(m_worldMat.mData, props.wMatf, sizeof(props.wMatf));
+        m_worldMat = wm;
         m_indices.swap(i);
         m_vertices.swap(v);
         m_ptsmtx.unlock();
