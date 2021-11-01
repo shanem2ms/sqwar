@@ -152,7 +152,7 @@ namespace sam
         if (ImGui::Button(ICON_FA_CHEVRON_UP, ImVec2(btnSize, btnSize)))
         {
             m_world->SetMode(
-                (m_world->GetMode() + 1) & 3);
+                (m_world->GetMode() + 1) & 7);
         }
 
         ImGui::End();

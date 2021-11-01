@@ -291,6 +291,7 @@ void ReadNextBlock(std::vector<unsigned char>& data)
     }
 }
 
+static double sTimestamp = 0;
 
 void Tick()
 {
@@ -300,7 +301,7 @@ void Tick()
 #ifdef SENDFRAMES
 
     std::vector<unsigned char> data;
-    ReadNextBlock(data);
+    ReadNextBlock(data);    
     if (data.size() == 8)
     {
         size_t val = *(size_t*)data.data();
@@ -309,6 +310,9 @@ void Tick()
             ReadNextBlock(data);
             sam::DepthDataProps props;
             memcpy(&props, data.data(), data.size());
+
+            sTimestamp = props.timestamp;
+
             std::vector<unsigned char> vidData;
             ReadNextBlock(vidData);
             std::vector<unsigned char> ddata;
@@ -322,6 +326,8 @@ void Tick()
             ReadNextBlock(data);
             sam::FaceDataProps fdp;
             memcpy(&fdp, data.data(), sizeof(fdp));
+
+            sTimestamp = fdp.timestamp;
             ReadNextBlock(data);
             std::vector<float> vertices(data.size() / sizeof(float));
             memcpy(vertices.data(), data.data(), data.size());

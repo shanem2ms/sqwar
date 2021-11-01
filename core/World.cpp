@@ -205,10 +205,13 @@ namespace sam
             }
             if (m_mode & 2)
             {
-                m_facevis = std::make_shared<FaceVis>();
-                m_worldGroup->AddItem(m_facevis);
                 m_ptsvis = std::make_shared<PtsVis>();
                 m_worldGroup->AddItem(m_ptsvis);
+            }
+            if (m_mode & 4)
+            {
+                m_facevis = std::make_shared<FaceVis>();
+                m_worldGroup->AddItem(m_facevis);
             }
             m_prevMode = m_mode;
         }
