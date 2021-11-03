@@ -473,7 +473,7 @@ public:
             GetDerivatives2(ptsStart, ptsEnd, rot, trans, uScore, tScore);
             totalScore = fabs(length(uScore) + length(tScore));
             char tmp[1024];
-            sprintf_s(tmp, "%f  [%f %f %f] r=%f [%f %f %f]\n", totalScore, tScore[0], tScore[1], tScore[2], uScore[3], uScore[0], uScore[1], uScore[2]);
+            sprintf(tmp, "%f  [%f %f %f] r=%f [%f %f %f]\n", totalScore, tScore[0], tScore[1], tScore[2], uScore[3], uScore[0], uScore[1], uScore[2]);
             //OutputDebugStringA(tmp);
             trans += tScore * dvals[0];
             rot[0] += uScore[0] * dvals[1];
@@ -506,7 +506,7 @@ public:
             GetDerivatives(ptsStart, ptsEnd, rot, trans, uScore, tScore);
             totalScore = fabs(length(uScore) + length(tScore));
             char tmp[1024];
-            sprintf_s(tmp, "%f  [%f %f %f] [%f %f %f]\n", totalScore, tScore[0], tScore[1], tScore[2], uScore[0], uScore[1], uScore[2]);
+            sprintf(tmp, "%f  [%f %f %f] [%f %f %f]\n", totalScore, tScore[0], tScore[1], tScore[2], uScore[0], uScore[1], uScore[2]);
             Dbg(tmp);
             trans += tScore * dvals[0];
             rot[0] += uScore[0] * dvals[1];
@@ -659,7 +659,7 @@ public:
     }
 };
 
-PTEXPORT int GetNearest(Point3f* pts0, size_t ptCount0, Point3f* pts1, size_t ptCount1, int* outMatches)
+int GetNearest(Point3f* pts0, size_t ptCount0, Point3f* pts1, size_t ptCount1, int* outMatches)
 {
     KDTree::KDTree <3, ANode> kdtree;
     size_t ptidx = 0;
@@ -711,38 +711,38 @@ PTEXPORT int GetNearest(Point3f* pts0, size_t ptCount0, Point3f* pts1, size_t pt
     return nMatches;
 }
 
-PTEXPORT PtScorer* CreatePtScorer(float* m_pts0, size_t ptCount0, float* m_pts1, size_t ptCount1, float* pmatrix,
+PtScorer* CreatePtScorer(float* m_pts0, size_t ptCount0, float* m_pts1, size_t ptCount1, float* pmatrix,
     int frameIdx)
 {
     return new PtScorer((Vec3f*)m_pts0, ptCount0 / 3, (Vec3f*)m_pts1, ptCount1 / 3, (Matrix44f*)pmatrix, frameIdx);
 }
 
-PTEXPORT float GetScore(PtScorer* pthis, float* pmatrix)
+float GetScore(PtScorer* pthis, float* pmatrix)
 {
     return pthis->GetScore((Matrix44f&)*pmatrix);
 }
 
-PTEXPORT void FreePtScorer(PtScorer* pthis)
+void FreePtScorer(PtScorer* pthis)
 {
     delete pthis;
 }
 
-PTEXPORT PTCloudAlign* CreatePtCloudAlign(float* pts0, size_t ptCount0, float* pts1, size_t ptCount1)
+PTCloudAlign* CreatePtCloudAlign(float* pts0, size_t ptCount0, float* pts1, size_t ptCount1)
 {
     return new PTCloudAlign((Vec3f*)pts0, ptCount0 / 3, (Vec3f*)pts1, ptCount1 / 3);
 }
 
-PTEXPORT int AlignStep(PTCloudAlign* pthis, float* matrix)
+int AlignStep(PTCloudAlign* pthis, float* matrix)
 {
     return pthis->AlignStep((Matrix44f&)*matrix);
 }
 
-PTEXPORT void FreePtCloudAlign(PTCloudAlign* pthis)
+void FreePtCloudAlign(PTCloudAlign* pthis)
 {
     delete pthis;
 }
 
-PTEXPORT int FindMatches(float* pts0, size_t ptCount0, float* pts1, size_t ptCount1,
+int FindMatches(float* pts0, size_t ptCount0, float* pts1, size_t ptCount1,
     float maxDistThreshold,
     int* matches)
 {
@@ -951,7 +951,7 @@ bool BestFitLod(Point3f* pts0, Vec3f *nrm0, size_t ptCount0, Point3f* pts1, size
         if (err > 0.01f)
         {
             char tmp[1024];
-            sprintf_s(tmp, "err=%f\n", err);
+            sprintf(tmp, "err=%f\n", err);
             Dbg(tmp);
             success = false;
         }
@@ -981,7 +981,7 @@ bool BestFitLod(Point3f* pts0, Vec3f *nrm0, size_t ptCount0, Point3f* pts1, size
 }
 
 
-PTEXPORT void BestFit(float* _pts0, float* _nrm0, size_t ptCount0, float* _pts1, size_t ptCount1,
+void BestFit(float* _pts0, float* _nrm0, size_t ptCount0, float* _pts1, size_t ptCount1,
     int dw, int dh,
     float maxDistThreshold,
     Matrix44f* outTransform)
@@ -1002,7 +1002,7 @@ PTEXPORT void BestFit(float* _pts0, float* _nrm0, size_t ptCount0, float* _pts1,
     *outTransform  = (rotmat * trnsmat);
 }
 
-PTEXPORT bool BestFitAll(float* _vals0, float* _vals1, int width, int height,
+bool BestFitAll(float* _vals0, float* _vals1, int width, int height,
     float* cameraVals,
     float maxDistThreshold,
     Matrix44f* outTransform)
@@ -1107,7 +1107,7 @@ PTEXPORT bool BestFitAll(float* _vals0, float* _vals1, int width, int height,
 }
 
 
-PTEXPORT void CalcScores()
+void CalcScores()
 {
     auto itmax = std::max_element(scores.begin(), scores.end());
     size_t ival = itmax - scores.begin();

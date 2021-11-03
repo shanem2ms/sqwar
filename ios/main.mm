@@ -537,12 +537,15 @@ didUpdateAnchors:(NSArray<__kindof ARAnchor *> *)anchors
             GetMat(projMat, fdp.projMatf);
             std::vector<float> vertices;
             const simd_float3 *pvertices = faceGmt.vertices;
+            const simd_float2 *ptex = faceGmt.textureCoordinates;
             int count = faceGmt.vertexCount;
             for (int idx = 0; idx < count; ++idx)
             {
                 vertices.push_back(pvertices[idx][0]);
                 vertices.push_back(pvertices[idx][1]);
                 vertices.push_back(pvertices[idx][2]);
+                vertices.push_back(ptex[idx][0]);
+                vertices.push_back(ptex[idx][1]);
             }
             std::vector<int16_t> indexvec;
             count = faceGmt.triangleCount * 3;

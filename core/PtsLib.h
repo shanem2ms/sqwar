@@ -70,8 +70,8 @@ inline bool IsValid(const Point3f& pt)
 
 void CalcNormals(Point3f* pts0, Vec3f* nrm, int dw, int dh);
 
-PTEXPORT void CalcDepthPts(const Matrix44f& camMatrix, float* depthVals, int width, int height, std::vector<Point3f> &pOutPts);
-PTEXPORT void DepthBuildLods(float* dbuf, float* outpts, int depthWidth, int depthHeight, float maxDist = -1);
+void CalcDepthPts(const Matrix44f& camMatrix, float* depthVals, int width, int height, std::vector<Point3f> &pOutPts);
+void DepthBuildLods(float* dbuf, float* outpts, int depthWidth, int depthHeight, float maxDist = -1);
 
 inline void AAExpand(AABoxf& aabox, const Point3f& v)
 {
