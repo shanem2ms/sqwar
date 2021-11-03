@@ -44,6 +44,7 @@ endif()
 
 set(Source_Files
     "Application.cpp"
+    "Alignment.cpp"
     "Engine.cpp"
     "Hud.cpp"
     "SceneItem.cpp"

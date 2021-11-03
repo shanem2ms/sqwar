@@ -18,6 +18,7 @@
 #include <string>
 #include <vector>
 #include <fstream>
+#include <algorithm>
 
 #define MAX_LOADSTRING 100
 
@@ -274,9 +275,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 #define SENDFRAMES 1
 
 
-void ReadNextBlock(std::vector<unsigned char>& data)
+static std::fstream s_binfile;
+
+bool ReadNextBlock(std::vector<unsigned char>& data)
 {
-    static std::fstream s_binfile;
     if (!s_binfile.is_open())
         s_binfile = std::fstream("C:\\homep4\\\sqwar\\file.binary", std::ios::binary | std::ios::in);
     size_t sz = 0;
@@ -285,13 +287,92 @@ void ReadNextBlock(std::vector<unsigned char>& data)
     s_binfile.read((char*)data.data(), sz);
 
     if (s_binfile.eof())
-    {
+    {        
         s_binfile.clear();
         s_binfile.seekg(0, s_binfile.beg);
+        return false;
     }
+
+    return true;
 }
 
-static double sTimestamp = 0;
+struct DepthFrame
+{
+    sam::DepthDataProps props;
+    std::vector<unsigned char> vidData;
+    std::vector<float> depthData;
+};
+
+struct FaceFrame
+{
+    sam::FaceDataProps props;
+    std::vector<float> vertices;
+    std::vector<int16_t> indices;
+};
+std::vector<DepthFrame> depthFrames;
+std::vector<FaceFrame> faceFrames;
+
+
+static double sStartTime, sEndTime;
+
+void ReadAllBlocks()
+{
+    size_t sz = 0;
+    std::vector<unsigned char> data;
+    while (ReadNextBlock(data))
+    {
+        s_binfile.read((char*)data.data(), sz);
+        if (data.size() == 8)
+        {
+            size_t val = *(size_t*)data.data();
+            if (val == 1234)
+            {
+                DepthFrame df;
+                ReadNextBlock(data);
+                memcpy(&df.props, data.data(), data.size());
+                ReadNextBlock(df.vidData);
+                std::vector<unsigned char> ddata;
+                ReadNextBlock(ddata);
+                df.depthData.resize(ddata.size() / sizeof(float));
+                memcpy(df.depthData.data(), ddata.data(), ddata.size());
+                depthFrames.push_back(df);
+            }
+            else if (val == 5678)
+            {
+                FaceFrame ff;
+                ReadNextBlock(data);
+                memcpy(&ff.props, data.data(), sizeof(ff.props));
+
+                ReadNextBlock(data);
+                ff.vertices.resize(data.size() / sizeof(float));
+                memcpy(ff.vertices.data(), data.data(), data.size());
+                ReadNextBlock(data);
+                ff.indices.resize(data.size() / sizeof(int16_t));
+                memcpy(ff.indices.data(), data.data(), data.size());
+                faceFrames.push_back(ff);
+            }
+        }
+    }
+
+    std::sort(depthFrames.begin(), depthFrames.end(), [](const DepthFrame& lhs, const DepthFrame& rhs)
+        {
+            return lhs.props.timestamp < rhs.props.timestamp;
+        });
+    
+    std::sort(faceFrames.begin(), faceFrames.end(), [](const FaceFrame& lhs, const FaceFrame& rhs)
+        {
+            return lhs.props.timestamp < rhs.props.timestamp;
+        });
+
+    sStartTime = std::min(depthFrames[0].props.timestamp, faceFrames[0].props.timestamp);
+    sEndTime = std::max(depthFrames.back().props.timestamp, faceFrames.back().props.timestamp);
+
+}
+
+static bool firsttick = true;
+static double sCurtime = sStartTime;
+static size_t curDepthIdx = 0;
+static size_t curFaceIdx = 0;
 
 void Tick()
 {
@@ -300,43 +381,35 @@ void Tick()
 
 #ifdef SENDFRAMES
 
-    std::vector<unsigned char> data;
-    ReadNextBlock(data);    
-    if (data.size() == 8)
+    if (firsttick)
     {
-        size_t val = *(size_t*)data.data();
-        if (val == 1234)
-        {
-            ReadNextBlock(data);
-            sam::DepthDataProps props;
-            memcpy(&props, data.data(), data.size());
-
-            sTimestamp = props.timestamp;
-
-            std::vector<unsigned char> vidData;
-            ReadNextBlock(vidData);
-            std::vector<unsigned char> ddata;
-            ReadNextBlock(ddata);
-            std::vector<float> depthData(ddata.size() / sizeof(float));
-            memcpy(depthData.data(), ddata.data(), ddata.size());
-            app.OnDepthBuffer(vidData, depthData, props);
-        }
-        else if (val == 5678)
-        {
-            ReadNextBlock(data);
-            sam::FaceDataProps fdp;
-            memcpy(&fdp, data.data(), sizeof(fdp));
-
-            sTimestamp = fdp.timestamp;
-            ReadNextBlock(data);
-            std::vector<float> vertices(data.size() / sizeof(float));
-            memcpy(vertices.data(), data.data(), data.size());
-            ReadNextBlock(data);
-            std::vector<int16_t> indices(data.size() / sizeof(int16_t));
-            memcpy(indices.data(), data.data(), data.size());
-            app.OnFaceData(fdp, vertices, indices);
-        }
+        ReadAllBlocks();
+        sCurtime = sStartTime;
     }
+
+    size_t prevDepth = curDepthIdx;
+    size_t prevFace = curFaceIdx;
+    while (curDepthIdx < (depthFrames.size() - 1) &&
+        depthFrames[curDepthIdx + 1].props.timestamp <= sCurtime)
+        curDepthIdx++;
+
+    while (curFaceIdx < (faceFrames.size() - 1) &&
+        faceFrames[curFaceIdx + 1].props.timestamp <= sCurtime)
+        curFaceIdx++;
+
+    if (firsttick || curDepthIdx != prevDepth)
+        app.OnDepthBuffer(depthFrames[curDepthIdx].vidData, depthFrames[curDepthIdx].depthData, depthFrames[curDepthIdx].props);
+    if (firsttick || curFaceIdx != prevFace)
+        app.OnFaceData(faceFrames[curFaceIdx].props, faceFrames[curFaceIdx].vertices, faceFrames[curFaceIdx].indices);
+   
+    firsttick = false;
+    sCurtime += 1 / 60.0f;
+    if (sCurtime > sEndTime)
+    {
+        sCurtime = sStartTime;
+        curDepthIdx = curFaceIdx = 0;
+    }
+
 #endif
     LARGE_INTEGER cur;
     QueryPerformanceCounter(&cur);
