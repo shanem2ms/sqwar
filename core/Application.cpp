@@ -133,7 +133,7 @@ namespace sam
             , uint16_t(m_height)
         );
 
-        const int btnSize = 80;
+        const int btnSize = 200;
         const int btnSpace = 10;
         ImGui::SetNextWindowPos(
             ImVec2(btnSize, btnSize)
