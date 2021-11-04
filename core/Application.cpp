@@ -61,12 +61,15 @@ namespace sam
     void Application::TouchDown(float x, float y, int touchId)
     {
         m_touchDown = gmtl::Vec2f(x, y);
+        m_touchPos = gmtl::Vec2f(x, y);
         m_buttonDown = 1;
         m_world->TouchDown(x, y, touchId);
     }
 
     void Application::TouchMove(float x, float y, int touchId)
     {
+        if (!m_buttonDown)
+            return;
         m_touchPos = gmtl::Vec2f(x, y);
         m_world->TouchDrag(x, y, touchId);
     }
@@ -149,8 +152,7 @@ namespace sam
             ImGuiWindowFlags_NoMove);
 
         ImGui::SetCursorPos(ImVec2(0, 0));
-        ImGui::Button(ICON_FA_CHEVRON_UP, ImVec2(btnSize, btnSize));
-        if (ImGui::IsItemActive())
+        if (ImGui::Button(ICON_FA_CHEVRON_UP, ImVec2(btnSize, btnSize)))        
         {
             m_world->SetMode(
                 (m_world->GetMode() + 1) & 7);
