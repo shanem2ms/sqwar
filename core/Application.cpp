@@ -36,7 +36,8 @@ namespace sam
         m_width(0),
         m_frameIdx(0),
         m_buttonDown(false),
-        m_clientInit(false)
+        m_clientInit(false),
+        m_isrecording(false)
     {
         s_pInst = this;
         m_engine = std::make_unique<Engine>();
@@ -136,7 +137,7 @@ namespace sam
             , uint16_t(m_height)
         );
 
-        const int btnSize = 200;
+        const int btnSize = 80;
         const int btnSpace = 10;
         ImGui::SetNextWindowPos(
             ImVec2(btnSize, btnSize)
@@ -156,6 +157,12 @@ namespace sam
         {
             m_world->SetMode(
                 (m_world->GetMode() + 1) & 7);
+        }
+
+        ImGui::SetCursorPos(ImVec2(100, 0));
+        if (ImGui::Button(m_isrecording ? ICON_FA_SQUARE : ICON_FA_CIRCLE, ImVec2(btnSize, btnSize)))
+        {
+            m_isrecording = !m_isrecording;
         }
 
         ImGui::End();
@@ -213,17 +220,15 @@ namespace sam
         c.SendData((const unsigned char *)depthData.data(), depthData.size() *
                            sizeof(float));
 #endif
-#ifdef DOWRITEDATA
-        s_pInst->WriteDepthDataToFile(vidData, depthData, props);
-#endif
+        if (s_pInst->m_isrecording)
+            s_pInst->WriteDepthDataToFile(vidData, depthData, props);
         s_pInst->m_world->OnDepthBuffer(vidData, depthData, props);
     }
 
     void Application::OnFaceData(const FaceDataProps &props, const std::vector<float> &vertices, const std::vector<int16_t> indices)
     {
-#ifdef DOWRITEDATA
-        s_pInst->WriteFaceDataToFile(props, vertices, indices);
-#endif
+        if (s_pInst->m_isrecording)
+            s_pInst->WriteFaceDataToFile(props, vertices, indices);
         s_pInst->m_world->OnFaceData(props, vertices, indices);
     }
     Application::~Application()

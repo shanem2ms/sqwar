@@ -34,6 +34,7 @@ class Application
     std::unique_ptr<Client> m_client;
     bool m_clientInit;
     static void (*m_dbgFunc)(const char*);
+    bool m_isrecording;
 
 public:    
     Application();
