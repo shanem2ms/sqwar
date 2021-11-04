@@ -149,7 +149,8 @@ namespace sam
             ImGuiWindowFlags_NoMove);
 
         ImGui::SetCursorPos(ImVec2(0, 0));
-        if (ImGui::Button(ICON_FA_CHEVRON_UP, ImVec2(btnSize, btnSize)))
+        ImGui::Button(ICON_FA_CHEVRON_UP, ImVec2(btnSize, btnSize));
+        if (ImGui::IsItemActive())
         {
             m_world->SetMode(
                 (m_world->GetMode() + 1) & 7);
