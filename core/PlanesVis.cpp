@@ -1,4 +1,5 @@
 #include "StdIncludes.h"
+#include "Application.h"
 #include "PlanesVis.h"
 #include "DepthPts.h"
 #include "Mesh.h"
@@ -25,14 +26,13 @@ namespace sam
     void PlanesVis::SetDepthData(const unsigned char* vdata, size_t vsize, const std::vector<float> &depthData,
         const DepthDataProps& props)
     {
-        std::vector<Point3f> outCoords, outTexCoords;
+        std::vector<Vec3f> outCoords, outTexCoords;
         outCoords.resize(1 << 16);
         outTexCoords.resize(1 << 16);
         int count = 0;
-        std::vector<gmtl::Point3f> pts;
-        GetDepthPoints(depthData, pts, 640, 480, 10000.0f);
-        DepthMakePlanes(pts.data(), outCoords.data(), outTexCoords.data(), outTexCoords.size(), &count,
-            640, 480);
+        std::vector<gmtl::Vec4f> pts;
+        GetDepthPointsWithColor(depthData, vdata, props.vidWidth, props.vidHeight, pts, props.depthWidth, props.depthHeight, 10000.0f);
+        DepthMakePlanes(pts.data(), props.depthWidth, props.depthHeight, outCoords.data(), outTexCoords.data(), outTexCoords.size(), &count);
         std::vector<PosTexcoordVertex> postx;
         postx.resize(count);
         auto itcoords = outCoords.begin();

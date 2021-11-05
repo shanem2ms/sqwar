@@ -23,7 +23,8 @@ namespace sam
         m_height(-1),
         m_currentTool(0),
         m_prevMode(-1),
-        m_mode(2)
+        m_mode(1),
+        m_faceDepth(-1)
     {
 
     }  
@@ -242,12 +243,30 @@ namespace sam
     {
         if (!isPaused)
         {
+            std::vector<float> filtereddata;
+            if (m_faceDepth > 0)
+            {
+                filtereddata = depthData;
+                float d = 0.25f;
+                float min = m_faceDepth - d;
+                float max = m_faceDepth + d;
+                for (auto itdata = filtereddata.begin() + 16; itdata !=
+                    filtereddata.end(); ++itdata)
+                {
+                    float& val = *itdata;
+                    if (std::isnan(val) || std::isinf(val))
+                        continue;
+                    if (val < min || val > max)
+                        val = nanf("");
+                }
+            }
+            const std::vector<float>& ddata = m_faceDepth > 0 ? filtereddata : depthData;
             if (m_planevis)
                 m_planevis->SetDepthData(
-                vidData.data(), vidData.size(), depthData, props);
+                vidData.data(), vidData.size(), ddata, props);
             if (m_ptsvis)
                 m_ptsvis->SetDepthData(
-                vidData.data(), vidData.size(), depthData, props);
+                vidData.data(), vidData.size(), ddata, props);
         }
     }
 
@@ -255,6 +274,16 @@ namespace sam
     {
         if (!isPaused)
         {
+            Matrix44f wm, vm;
+            wm.mState = Matrix44f::AFFINE;
+            vm.mState = Matrix44f::AFFINE;
+            memcpy(wm.mData, props.wMatf, sizeof(props.wMatf));
+            memcpy(vm.mData, props.viewMatf, sizeof(props.viewMatf));
+            wm = vm * wm;
+            Vec4f pos;
+            xform(pos, wm, Vec4f(0, 0, 0, 1));
+            m_faceDepth = -pos[2];
+
             if (m_facevis)
                 m_facevis->OnFaceData(props, vertices, indices);
         }

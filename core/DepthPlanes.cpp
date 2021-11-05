@@ -44,15 +44,20 @@ namespace sam
 
     struct Buffer
     {
-        const Point3f* depthPths;
+        const Vec4f* depthPths;
         int width;
         int height;
     };
 
     struct Quad
     {
-        Point3f pt[4];
+        Vec4f pt[4];
     };
+
+    inline Vec3f _v3(const Vec4f& v)
+    {
+        return Vec3f(v[0], v[1], v[2]);
+    }
 
     struct Result
     {
@@ -66,7 +71,7 @@ namespace sam
         float maxDistFound;
 
         Vec3f normal;
-        Point3f pt0;
+        Vec4f pt0;
 
         bool isPicked = false;
 
@@ -78,7 +83,7 @@ namespace sam
     typedef std::shared_ptr<Result> ResultPtr;
 
     float g_mindist = 0.05f;
-    float g_splitThreshold = 0.015f;
+    float g_splitThreshold = 0.0025f;
     float g_MinDPVal = 0.9f;
     float g_maxCoverage = 20.0f;
     unsigned long long lastPickedId = 0;
@@ -112,7 +117,7 @@ namespace sam
 
         }
 
-        inline const Point3f& GetPt(int x, int y)
+        inline const Vec4f& GetPt(int x, int y)
         {
             int ry = std::min(m_buffer.height - 1, y + m_rect.y);
             int rx = std::min(m_buffer.width - 1, x + m_rect.x);
@@ -121,7 +126,7 @@ namespace sam
 
         bool Process(std::vector<ResultPtr>& quads, int level)
         {
-            const Point3f* ptl = nullptr, * ptr = nullptr,
+            const Vec4f* ptl = nullptr, * ptr = nullptr,
                 * pbl = nullptr, * pbr = nullptr;
             int height = m_rect.h;
             int width = m_rect.w;
@@ -134,7 +139,7 @@ namespace sam
             {
                 for (int x = 0; x <= width && ptl == nullptr; ++x)
                 {
-                    const Point3f& pt = GetPt(x, y);
+                    const Vec4f& pt = GetPt(x, y);
                     if (IsValid(pt))
                     {
                         found++;  ptl = &pt;
@@ -146,7 +151,7 @@ namespace sam
             {
                 for (int x = width; x >= 0 && ptr == nullptr; --x)
                 {
-                    const Point3f& pt = GetPt(x, y);
+                    const Vec4f& pt = GetPt(x, y);
                     if (IsValid(pt))
                     {
                         ptr = &pt;
@@ -159,7 +164,7 @@ namespace sam
             {
                 for (int x = 0; x <= width && pbl == nullptr; ++x)
                 {
-                    const Point3f& pt = GetPt(x, y);
+                    const Vec4f& pt = GetPt(x, y);
                     if (IsValid(pt))
                     {
                         pbl = &pt;
@@ -172,7 +177,7 @@ namespace sam
             {
                 for (int x = width; x >= 0 && pbr == nullptr; --x)
                 {
-                    const Point3f& pt = GetPt(x, y);
+                    const Vec4f& pt = GetPt(x, y);
                     if (IsValid(pt))
                     {
                         pbr = &pt;
@@ -184,9 +189,9 @@ namespace sam
             if (found < 4)
                 return false;
 
-            Vec3f vec1 = *pbr - *ptr;
-            Vec3f vec2 = *ptr - *ptl;
-            Vec3f vec3 = *pbl - *ptl;
+            Vec3f vec1 = _v3(*pbr - *ptr);
+            Vec3f vec2 = _v3(*ptr - *ptl);
+            Vec3f vec3 = _v3(*pbl - *ptl);
             Vec3f nrm1;
             cross(nrm1, vec1, vec2);
             if (length(nrm1) == 0)
@@ -208,7 +213,7 @@ namespace sam
 
             normalize(nrm1);
 
-            Point3f planePt = *ptl;
+            Vec4f planePt = *ptl;
             bool split = false;
             float maxDistFound = 0;
             float numPts = 0;
@@ -216,10 +221,10 @@ namespace sam
             {
                 for (int x = 0; x <= width && !split; ++x)
                 {
-                    const Point3f& pt = GetPt(x, y);
+                    const Vec4f& pt = GetPt(x, y);
                     if (IsValid(pt))
                     {
-                        float dp = fabs(dot(pt - planePt, nrm1));
+                        float dp = fabs(dot(_v3(pt - planePt), nrm1));
                         if (dp > g_mindist)
                         {
                             split = true;
@@ -515,15 +520,25 @@ namespace sam
 
             float dotNrm = dot(pThis->normal, other->normal);
             if ((dotNrm < -g_MinDPVal || dotNrm > g_MinDPVal) &&
-                dot((pThis->pt0 - other->pt0), pThis->normal) < g_mindist)
+                dot(_v3(pThis->pt0 - other->pt0), pThis->normal) < g_mindist)
             {
                 FindConnected(itNeighbors.first, visitIdx, outTiles);
             }
         }
     }
 
-    void DepthMakePlanes(const Point3f* vals, Point3f* outVertices, Point3f* outTexCoords, int maxCount, int* outCount,
-        int depthWidth, int depthHeight)
+    inline Vec3f unpackColor(float f) {
+        Vec3f color;
+        color[2] = floor(f / 256.0 / 256.0);
+        color[1] = floor((f - color[2] * 256.0 * 256.0) / 256.0);
+        color[0] = floor(f - color[2] * 256.0 * 256.0 - color[1] * 256.0);
+        // now we have a vec3 with the 3 components in range [0..255]. Let's normalize it!
+        return color / 255.0f;
+    }
+
+
+    void DepthMakePlanes(const Vec4f* vals, int depthWidth, int depthHeight,        
+        Vec3f* outVertices, Vec3f* outTexCoords, int maxCount, int* outCount)
     {
         Buffer b;
         b.depthPths = vals;
@@ -546,12 +561,12 @@ namespace sam
             cross(xdir, res->normal, yorz ? Vec3f(0, 0, 1) : Vec3f(0, 1, 0));
             Vec3f ydir;
             cross(ydir, xdir, res->normal);
-            const Point3f* pts = res->q.pt;
+            const Vec4f* pts = res->q.pt;
             Vec3f ptpln[4];
             for (int i = 0; i < 4; ++i)
             {
-                ptpln[i] = Vec3f(dot(pts[i] - res->pt0, xdir),
-                    dot(pts[i] - res->pt0, ydir), 0);
+                ptpln[i] = Vec3f(dot(_v3(pts[i] - res->pt0), xdir),
+                    dot(_v3(pts[i] - res->pt0), ydir), 0);
             }
 
             float longestDiag = 0;
@@ -560,7 +575,7 @@ namespace sam
                 for (int j = i + 1; j < 4; ++j)
                 {
                     longestDiag =
-                        std::max(longestDiag, lengthSquared(Vec3f(pts[i] - pts[j])));
+                        std::max(longestDiag, lengthSquared(_v3(pts[i] - pts[j])));
                 }
             }
 
@@ -595,23 +610,20 @@ namespace sam
         size_t vIdx = 0;
         for (auto& itVec : outTiles)
         {
-            Point3f rgb((float)std::rand() / RAND_MAX,
+            Vec3f rgb((float)std::rand() / RAND_MAX,
                 (float)std::rand() / RAND_MAX,
                 (float)std::rand() / RAND_MAX);
 
+            int idxs[6] = { 0, 1, 2, 1, 3, 2 };
             for (auto result : itVec)
             {
                 Quad& q = result->q;
-                outVertices[vIdx] = q.pt[0];
-                outVertices[vIdx + 1] = q.pt[1];
-                outVertices[vIdx + 2] = q.pt[2];
-                outVertices[vIdx + 3] = q.pt[1];
-                outVertices[vIdx + 4] = q.pt[3];
-                outVertices[vIdx + 5] = q.pt[2];
                 for (size_t idx = 0; idx < 6; ++idx)
                 {
-                    outTexCoords[vIdx + idx] = result->isPicked ? Point3f(1, 1, 1) :
-                        rgb;
+                    Vec4f& pt = q.pt[idxs[idx]];
+                    outVertices[vIdx + idx] = _v3(pt);
+                    outTexCoords[vIdx + idx] = result->isPicked ? Vec3f(1, 1, 1) :
+                        unpackColor(pt[3]);
                 }
 
                 vIdx += 6;
