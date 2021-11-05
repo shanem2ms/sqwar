@@ -1,4 +1,4 @@
-$input v_texcoord0
+$input v_texcoord0, v_vtxcolor
 /*
  * Copyright 2011-2021 Branimir Karadzic. All rights reserved.
  * License: https://github.com/bkaradzic/bgfx#license-bsd-2-clause
@@ -9,5 +9,5 @@ $input v_texcoord0
 
 void main()
 {
-	gl_FragColor.rgba = vec4(v_texcoord0,0,1);
+	gl_FragColor.rgba = vec4(v_vtxcolor);
 } 

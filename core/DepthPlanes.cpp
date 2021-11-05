@@ -527,16 +527,6 @@ namespace sam
         }
     }
 
-    inline Vec3f unpackColor(float f) {
-        Vec3f color;
-        color[2] = floor(f / 256.0 / 256.0);
-        color[1] = floor((f - color[2] * 256.0 * 256.0) / 256.0);
-        color[0] = floor(f - color[2] * 256.0 * 256.0 - color[1] * 256.0);
-        // now we have a vec3 with the 3 components in range [0..255]. Let's normalize it!
-        return color / 255.0f;
-    }
-
-
     void DepthMakePlanes(const Vec4f* vals, int depthWidth, int depthHeight,        
         Vec3f* outVertices, Vec3f* outTexCoords, int maxCount, int* outCount)
     {
@@ -610,10 +600,6 @@ namespace sam
         size_t vIdx = 0;
         for (auto& itVec : outTiles)
         {
-            Vec3f rgb((float)std::rand() / RAND_MAX,
-                (float)std::rand() / RAND_MAX,
-                (float)std::rand() / RAND_MAX);
-
             int idxs[6] = { 0, 1, 2, 1, 3, 2 };
             for (auto result : itVec)
             {
@@ -623,7 +609,7 @@ namespace sam
                     Vec4f& pt = q.pt[idxs[idx]];
                     outVertices[vIdx + idx] = _v3(pt);
                     outTexCoords[vIdx + idx] = result->isPicked ? Vec3f(1, 1, 1) :
-                        unpackColor(pt[3]);
+                        Vec3f(pt[3],0,0);
                 }
 
                 vIdx += 6;
