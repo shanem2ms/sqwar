@@ -26,15 +26,12 @@ namespace sam
     void PlanesVis::SetDepthData(const unsigned char* vdata, size_t vsize, const std::vector<float> &depthData,
         const DepthDataProps& props)
     {
-        std::vector<Vec3f> outCoords, outTexCoords;
-        outCoords.resize(1 << 16);
-        outTexCoords.resize(1 << 16);
-        int count = 0;
         std::vector<gmtl::Vec4f> pts;
+        std::vector<Vec3f> outCoords, outTexCoords;
         GetDepthPointsWithColor(depthData, vdata, props.vidWidth, props.vidHeight, pts, props.depthWidth, props.depthHeight, 10000.0f);
-        DepthMakePlanes(pts.data(), props.depthWidth, props.depthHeight, outCoords.data(), outTexCoords.data(), outTexCoords.size(), &count);
+        DepthMakePlanes(pts.data(), props.depthWidth, props.depthHeight, outCoords, outTexCoords);
         std::vector<PosTexcoordVertex> postx;
-        postx.resize(count);
+        postx.resize(outCoords.size());
         auto itcoords = outCoords.begin();
         auto ittex = outTexCoords.begin();
         auto itptx = postx.begin();

@@ -528,7 +528,7 @@ namespace sam
     }
 
     void DepthMakePlanes(const Vec4f* vals, int depthWidth, int depthHeight,        
-        Vec3f* outVertices, Vec3f* outTexCoords, int maxCount, int* outCount)
+        std::vector<Vec3f> &outVertices, std::vector<Vec3f>& outTexCoords)
     {
         Buffer b;
         b.depthPths = vals;
@@ -597,6 +597,17 @@ namespace sam
             FindConnected(res.get(), 1, outTiles.back());
         }
 
+        size_t vtxCount = 0;
+        for (auto& itVec : outTiles)
+        {
+            for (auto result : itVec)
+            {
+                vtxCount += 6;
+            }
+        }
+
+        outVertices.resize(vtxCount);
+        outTexCoords.resize(vtxCount);
         size_t vIdx = 0;
         for (auto& itVec : outTiles)
         {
@@ -615,8 +626,7 @@ namespace sam
                 vIdx += 6;
 
             }
-        }
-        *outCount = vIdx;
+        }        
     }
 
 }

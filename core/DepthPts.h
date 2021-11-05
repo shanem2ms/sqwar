@@ -20,5 +20,5 @@ namespace sam
         std::vector<gmtl::Point3f>& outPts, int depthWidth, int depthHeight, float maxdist);
 
     void DepthMakePlanes(const gmtl::Vec4f* vals, int depthWidth, int depthHeight,
-        gmtl::Vec3f* outVertices, gmtl::Vec3f* outTexCoords, int maxCount, int* outCount);
+        std::vector<gmtl::Vec3f>& outVertices, std::vector<gmtl::Vec3f>& outTexCoords);
 }
