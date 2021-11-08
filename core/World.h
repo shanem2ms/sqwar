@@ -32,6 +32,7 @@ namespace sam
         std::shared_ptr<PtsVis> m_ptsvis;
         std::shared_ptr<FaceVis> m_facevis;
         float m_faceDepth;
+        Vec2f m_faceCenterXY;
         int m_mode;
         int m_prevMode;
     public:

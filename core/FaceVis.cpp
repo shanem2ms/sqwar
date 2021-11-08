@@ -51,7 +51,7 @@ namespace sam
     {
         static bgfxh<bgfx::ProgramHandle> sShader;
         if (!bgfx::isValid(sShader))
-            sShader = Engine::Inst().LoadShader("vs_planes.bin", "fs_planes.bin");
+            sShader = Engine::Inst().LoadShader("vs_face.bin", "fs_planes.bin");
 
         if (m_vertices.size() == 0)
             return;

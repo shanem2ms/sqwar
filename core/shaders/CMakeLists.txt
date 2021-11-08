@@ -1,5 +1,5 @@
 set (CS_SHADERS )
-set (VS_SHADERS vs_cubes.sc vs_planes.sc vs_hud.sc)
+set (VS_SHADERS vs_cubes.sc vs_planes.sc vs_hud.sc vs_face.sc)
 set (FS_SHADERS fs_cubes.sc fs_planes.sc fs_hud.sc)
 
 set (CS_BINS ${CS_SHADERS})

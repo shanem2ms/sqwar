@@ -23,7 +23,7 @@ namespace sam
         m_height(-1),
         m_currentTool(0),
         m_prevMode(-1),
-        m_mode(1),
+        m_mode(2),
         m_faceDepth(-1)
     {
 
@@ -250,13 +250,32 @@ namespace sam
                 float d = 0.25f;
                 float min = m_faceDepth - d;
                 float max = m_faceDepth + d;
+                int px = 0, py = 0;
+                
+                Vec2f fc(m_faceCenterXY);
+                fc[0] = -fc[0];
+                fc[1] = -fc[1];
+                Vec2f v1((fc + Vec2f(1, 1)) * 0.5f);
+                Vec2f centerPixel(v1[0] * props.depthWidth, v1[1] * props.depthHeight);
+                float radiusSq = 150 * 150;
+                
                 for (auto itdata = filtereddata.begin() + 16; itdata !=
                     filtereddata.end(); ++itdata)
                 {
                     float& val = *itdata;
+                    
+                    float distSq = (px - centerPixel[0]) * (px - centerPixel[0]) +
+                        (py - centerPixel[1]) * (py - centerPixel[1]);
+
+                    px++;
+                    if (px == props.depthWidth)
+                    {
+                        px = 0;
+                        py++;
+                    }
                     if (std::isnan(val) || std::isinf(val))
                         continue;
-                    if (val < min || val > max)
+                    if (distSq > radiusSq || val < min || val > max)
                         val = nanf("");
                 }
             }
@@ -274,15 +293,21 @@ namespace sam
     {
         if (!isPaused)
         {
-            Matrix44f wm, vm;
+            Matrix44f wm, vm, pm;
             wm.mState = Matrix44f::AFFINE;
             vm.mState = Matrix44f::AFFINE;
+            pm.mState = Matrix44f::FULL;
             memcpy(wm.mData, props.wMatf, sizeof(props.wMatf));
             memcpy(vm.mData, props.viewMatf, sizeof(props.viewMatf));
+            memcpy(pm.mData, props.projMatf, sizeof(props.projMatf));
             wm = vm * wm;
             Vec4f pos;
             xform(pos, wm, Vec4f(0, 0, 0, 1));
             m_faceDepth = -pos[2];
+            wm = pm * wm;
+            xform(pos, wm, Vec4f(0, 0, 0, 1));
+            pos /= pos[3];
+            m_faceCenterXY = Vec2f(pos[0], pos[1]);
 
             if (m_facevis)
                 m_facevis->OnFaceData(props, vertices, indices);
