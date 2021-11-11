@@ -8,6 +8,7 @@ namespace sam
 {
     struct DrawContext;
     struct DepthDataProps;
+    class DepthData;
 
     class PlanesVis : public SceneItem
     {
@@ -19,8 +20,7 @@ namespace sam
     public:
         PlanesVis();
         ~PlanesVis();
-        void SetDepthData(const unsigned char* vdata, size_t vsize,
-            const std::vector<float>& depthData, const DepthDataProps &props);
+        void SetDepthData(const DepthData &depth);
     protected:
 
         void Initialize(DrawContext& nvg) override;

@@ -6,6 +6,7 @@
 #include <vector>
 #include <mutex>
 #include "gmtl/Vec.h"
+#include "gmtl/Matrix.h"
 
 namespace sam
 {
@@ -15,6 +16,7 @@ class Engine;
 struct DrawContext;
 class Server;
 class Client;
+struct DepthData;
 struct DepthDataProps;
 struct FaceDataProps;
 
@@ -35,6 +37,7 @@ class Application
     bool m_clientInit;
     static void (*m_dbgFunc)(const char*);
     bool m_isrecording;
+    double m_deviceTimestamp;
 
 public:    
     Application();
@@ -47,19 +50,17 @@ public:
     void KeyDown(int keyId);
     void KeyUp(int keyId);
     void Resize(int w, int h);
-    void Tick(float time);
+    void Tick(float time, double deviceTimestamp);
     void Draw();
     void Initialize(const char *folder);
     static void SendMDNSQueryThread();
     const std::string &Documents() const
     { return m_documentsPath; }
     
-    void WriteDepthDataToFile(const std::vector<unsigned char> &vidData, const std::vector<float> &pixelData,
-                              const DepthDataProps &props);
+    void WriteDepthDataToFile(DepthData &depthData);
     void WriteFaceDataToFile(const FaceDataProps &props, const std::vector<float> &vertices,
                              const std::vector<int16_t> indices);
-    static void OnDepthBuffer(const std::vector<unsigned char> &vidData, const std::vector<float> &pixelData,
-                            const DepthDataProps& props);
+    static void OnDepthBuffer(DepthData& depthData);
     static void OnFaceData(const FaceDataProps &props, const std::vector<float> &vertices,
                            const std::vector<int16_t> indices);
     static void SetDebugMsgFunc(void (*dbgfunc)(const char*));
@@ -75,6 +76,15 @@ struct DepthDataProps
     uint32_t depthWidth;
     uint32_t depthHeight;
     uint32_t depthMode;
+};
+
+struct DepthData
+{
+    DepthDataProps props;
+    std::vector<unsigned char> vidData;
+    std::vector<float> depthData;
+    std::vector<gmtl::Vec4f> pts;
+    gmtl::Matrix44f alignMtx;
 };
 
 struct FaceDataProps

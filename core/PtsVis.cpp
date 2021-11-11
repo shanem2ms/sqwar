@@ -19,13 +19,11 @@ namespace sam
         m_dtexture = bgfx::createUniform("s_depth", bgfx::UniformType::Sampler);
     }
 
-    void PtsVis::SetDepthData(const unsigned char* vdata, size_t vsize, const std::vector<float> &depthData,
-        const DepthDataProps& props)
+    void PtsVis::SetDepthData(const DepthData& depth)
     {
-        std::vector<gmtl::Vec4f> pts;
-        GetDepthPointsWithColor(depthData, vdata, props.vidWidth, props.vidHeight, pts, props.depthWidth, props.depthHeight, 10000.0f);
         m_ptsmtx.lock();
-        std::swap(m_pts, pts);
+        m_pts = depth.pts;
+        m_alignMtx = depth.alignMtx;
         m_ptsmtx.unlock();
     }
 
@@ -34,36 +32,14 @@ namespace sam
         if (m_pts.size() == 0)
             return;
         m_voxelinst = std::make_shared<VoxCube>();
+        Matrix44f alignMtx;
         m_ptsmtx.lock();
         m_voxelinst->Create(m_pts);
+        alignMtx = m_alignMtx;
         m_ptsmtx.unlock();
-        /*
-        size_t dsize = (depthData.size() - 16) * sizeof(float);
-        const bgfx::Memory* m = bgfx::alloc(dsize);
-        memcpy(m->data, depthData.data() + 16, dsize);
-        m_depthtex =
-            bgfx::createTexture2D(
-                640, 480, false,
-                1,
-                bgfx::TextureFormat::Enum::R32F,
-                BGFX_TEXTURE_NONE,
-                m
-            );
-        const bgfx::Memory* mv = bgfx::alloc(vsize);
-        memcpy(mv->data, vdata, vsize);
-        m_vidtex =
-            bgfx::createTexture2D(
-                640, 480, false,
-                1,
-                bgfx::TextureFormat::Enum::RGBA8,
-                BGFX_TEXTURE_NONE,
-                mv
-            );
-            
-        if (!bgfx::isValid(m_depthtex) || !bgfx::isValid(m_vidtex))
-            return;*/
+  
         Cube::init();
-        Matrix44f m = ctx.m_mat * CalcMat();
+        Matrix44f m = ctx.m_mat * alignMtx * CalcMat();
         bgfx::setTransform(m.getData());
         // Set vertex and index buffer.
         bgfx::setVertexBuffer(0, Cube::vbh);

@@ -23,13 +23,10 @@ namespace sam
         m_uparams = bgfx::createUniform("u_params", bgfx::UniformType::Vec4, 1);
     }
 
-    void PlanesVis::SetDepthData(const unsigned char* vdata, size_t vsize, const std::vector<float> &depthData,
-        const DepthDataProps& props)
+    void PlanesVis::SetDepthData(const DepthData& depth)
     {
-        std::vector<gmtl::Vec4f> pts;
         std::vector<Vec3f> outCoords, outTexCoords;
-        GetDepthPointsWithColor(depthData, vdata, props.vidWidth, props.vidHeight, pts, props.depthWidth, props.depthHeight, 10000.0f);
-        DepthMakePlanes(pts.data(), props.depthWidth, props.depthHeight, outCoords, outTexCoords);
+        DepthMakePlanes(depth.pts.data(), depth.props.depthWidth, depth.props.depthHeight, outCoords, outTexCoords);
         std::vector<PosTexcoordVertex> postx;
         postx.resize(outCoords.size());
         auto itcoords = outCoords.begin();

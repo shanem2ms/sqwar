@@ -312,7 +312,6 @@ struct FaceFrame
 std::vector<DepthFrame> depthFrames;
 std::vector<FaceFrame> faceFrames;
 
-
 static double sStartTime, sEndTime;
 
 void ReadAllBlocks()
@@ -366,7 +365,6 @@ void ReadAllBlocks()
 
     sStartTime = std::min(depthFrames[0].props.timestamp, faceFrames[0].props.timestamp);
     sEndTime = std::max(depthFrames.back().props.timestamp, faceFrames.back().props.timestamp);
-
 }
 
 static bool firsttick = true;
@@ -398,7 +396,13 @@ void Tick()
         curFaceIdx++;
 
     if (firsttick || curDepthIdx != prevDepth)
-        app.OnDepthBuffer(depthFrames[curDepthIdx].vidData, depthFrames[curDepthIdx].depthData, depthFrames[curDepthIdx].props);
+    {
+        sam::DepthData dd;
+        dd.vidData = depthFrames[curDepthIdx].vidData;
+        dd.depthData = depthFrames[curDepthIdx].depthData;
+        dd.props = depthFrames[curDepthIdx].props;
+        app.OnDepthBuffer(dd);
+    }
     if (firsttick || curFaceIdx != prevFace)
         app.OnFaceData(faceFrames[curFaceIdx].props, faceFrames[curFaceIdx].vertices, faceFrames[curFaceIdx].indices);
    
@@ -415,7 +419,7 @@ void Tick()
     QueryPerformanceCounter(&cur);
 
     float elapsedTime = (float)(cur.QuadPart - startTime.QuadPart) * timePeriod;
-    app.Tick(elapsedTime);
+    app.Tick(elapsedTime, sCurtime);
 
     RECT r;
     GetClientRect(hWnd, &r);

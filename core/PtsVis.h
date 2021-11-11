@@ -8,6 +8,7 @@ namespace sam
 {
     struct DrawContext;
     struct DepthDataProps;
+    struct DepthData;
 
     class PtsVis : public SceneItem
     {
@@ -20,10 +21,10 @@ namespace sam
         std::shared_ptr<VoxCube> m_voxelinst;
         std::vector<gmtl::Vec4f> m_pts;
         std::mutex m_ptsmtx;
+        gmtl::Matrix44f m_alignMtx;
     public:
         PtsVis() {}
-        void SetDepthData(const unsigned char* vdata, size_t vsize,
-            const std::vector<float>& depthData, const DepthDataProps &props);
+        void SetDepthData(const DepthData& depth);
     protected:
 
         void Initialize(DrawContext& nvg) override;

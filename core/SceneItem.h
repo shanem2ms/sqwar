@@ -26,6 +26,7 @@ namespace sam
         Matrix44f m_mat;
         bgfx::UniformHandle m_texture;
         bgfx::UniformHandle m_gradient;
+        double m_deviceTimestamp;
         World* m_pWorld;
         int m_nearfarpassIdx;
         float m_nearfar[3];

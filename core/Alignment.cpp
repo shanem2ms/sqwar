@@ -12,6 +12,8 @@
 using namespace gmtl;
 #define Dbg(x)
 
+namespace sam
+{
 struct V3
 {
     typedef float value_type;
@@ -727,9 +729,9 @@ void FreePtScorer(PtScorer* pthis)
     delete pthis;
 }
 
-PTCloudAlign* CreatePtCloudAlign(float* pts0, size_t ptCount0, float* pts1, size_t ptCount1)
+PTCloudAlign* CreatePtCloudAlign(Vec3f *pts0, size_t ptCount0, Vec3f* pts1, size_t ptCount1)
 {
-    return new PTCloudAlign((Vec3f*)pts0, ptCount0 / 3, (Vec3f*)pts1, ptCount1 / 3);
+    return new PTCloudAlign(pts0, ptCount0, pts1, ptCount1);
 }
 
 int AlignStep(PTCloudAlign* pthis, float* matrix)
@@ -1144,4 +1146,6 @@ Matrix44f CameraMat(const Vec4f& cameraCalibrationVals,
     //str << proj << std::endl << r1 << std::endl << r2 << std::endl << cm << std::endl;
     //OutputDebugStringA(str.str().c_str());
     return cm;
+}
+
 }

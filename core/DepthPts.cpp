@@ -149,5 +149,65 @@ namespace sam
             }
         }
     }
+
+    void DepthBuildLods(float* dbuf, float* outpts, int depthWidth, int depthHeight, float maxdist)
+    {
+        std::vector<float> dinv;
+        dinv.reserve(depthWidth * depthHeight);
+        float* dend = dbuf + (depthWidth * depthHeight);
+        for (float* dptr = dbuf; dptr != dend; ++dptr)
+        {
+            if (std::isnan(*dptr) || std::isinf(*dptr) ||
+                (maxdist > 0 && *dptr > maxdist))
+                dinv.push_back(NAN);
+            else
+                dinv.push_back(1.0f / *dptr);
+        }
+
+        int dsw = depthWidth;
+        int dw = depthWidth / 2;
+        int dh = depthHeight / 2;
+        const float* osrc = dinv.data();
+        float* dsrc = dinv.data();
+        float* dptr = outpts;
+        while (dw >= 16)
+        {
+            for (int y = 0; y < dh; ++y)
+            {
+                for (int x = 0; x < dw; ++x)
+                {
+                    float v[4] = {
+                        dsrc[(y * 2) * dsw + (x * 2)],
+                        dsrc[(y * 2) * dsw + (x * 2) + 1],
+                        dsrc[(y * 2 + 1) * dsw + (x * 2)],
+                        dsrc[(y * 2 + 1) * dsw + (x * 2) + 1] };
+                    float t = 0;
+                    float vf = 0;
+                    for (int i = 0; i < 4; ++i)
+                    {
+                        if (!std::isnan(v[i]))
+                        {
+                            vf += v[i];
+                            t += 1.0f;
+                        }
+                    }
+                    dptr[y * dw + x] = (t > 0) ? (vf / t) : NAN;
+                }
+            }
+
+            dsrc = dptr;
+            dptr += dw * dh;
+
+            dw /= 2;
+            dsw /= 2;
+            dh /= 2;
+        }
+
+        for (float* ptr = outpts; ptr < dptr; ++ptr)
+        {
+            *ptr = !std::isnan(*ptr) ? 1.0f / *ptr : NAN;
+        }
+    }
+
 }
 

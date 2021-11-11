@@ -21,4 +21,20 @@ namespace sam
 
     void DepthMakePlanes(const gmtl::Vec4f* vals, int depthWidth, int depthHeight,
         std::vector<gmtl::Vec3f>& outVertices, std::vector<gmtl::Vec3f>& outTexCoords);
+
+    class PtScorer;
+    class PTCloudAlign;
+
+    PtScorer* CreatePtScorer(float* m_pts0, size_t ptCount0, float* m_pts1, size_t ptCount1, float* pmatrix,
+        int frameIdx);
+
+    float GetScore(PtScorer* pthis, float* pmatrix);
+
+    void FreePtScorer(PtScorer* pthis);
+
+    PTCloudAlign* CreatePtCloudAlign(gmtl::Vec3f* pts0, size_t ptCount0, gmtl::Vec3f* pts1, size_t ptCount1);
+
+    int AlignStep(PTCloudAlign* pthis, float* matrix);
+
+    void FreePtCloudAlign(PTCloudAlign* pthis);
 }

@@ -8,6 +8,7 @@
 #include "PtsVis.h"
 #include "PlanesVis.h"
 #include "FaceVis.h"
+#include "DepthPts.h"
 
 
 #define NOMINMAX
@@ -23,8 +24,9 @@ namespace sam
         m_height(-1),
         m_currentTool(0),
         m_prevMode(-1),
-        m_mode(2),
-        m_faceDepth(-1)
+        m_mode(6),
+        m_wsHeadCenter(),
+        m_prevDepthTimestamp(std::numeric_limits<double>::max())
     {
 
     }  
@@ -238,25 +240,27 @@ namespace sam
 
     }
 
-    void World::OnDepthBuffer(const std::vector<unsigned char>& vidData, const std::vector<float>& depthData,
-        const DepthDataProps &props)
+    void World::OnDepthBuffer(DepthData& depth)
     {
+        if (depth.props.timestamp < m_prevDepthTimestamp)
+            identity(m_alignedMtx);
         if (!isPaused)
         {
             std::vector<float> filtereddata;
-            if (m_faceDepth > 0)
+            if (m_wsHeadCenter[2] != 0)
             {
-                filtereddata = depthData;
+                float faceDepth = -m_wsHeadCenter[2];
+                filtereddata = depth.depthData;
                 float d = 0.25f;
-                float min = m_faceDepth - d;
-                float max = m_faceDepth + d;
+                float min = faceDepth - d;
+                float max = faceDepth + d;
                 int px = 0, py = 0;
                 
                 Vec2f fc(m_faceCenterXY);
                 fc[0] = -fc[0];
                 fc[1] = -fc[1];
                 Vec2f v1((fc + Vec2f(1, 1)) * 0.5f);
-                Vec2f centerPixel(v1[0] * props.depthWidth, v1[1] * props.depthHeight);
+                Vec2f centerPixel(v1[0] * depth.props.depthWidth, v1[1] * depth.props.depthHeight);
                 float radiusSq = 150 * 150;
                 
                 for (auto itdata = filtereddata.begin() + 16; itdata !=
@@ -268,7 +272,7 @@ namespace sam
                         (py - centerPixel[1]) * (py - centerPixel[1]);
 
                     px++;
-                    if (px == props.depthWidth)
+                    if (px == depth.props.depthWidth)
                     {
                         px = 0;
                         py++;
@@ -278,37 +282,76 @@ namespace sam
                     if (distSq > radiusSq || val < min || val > max)
                         val = nanf("");
                 }
+
+                depth.depthData = filtereddata;
             }
-            const std::vector<float>& ddata = m_faceDepth > 0 ? filtereddata : depthData;
+            
+            GetDepthPointsWithColor(depth.depthData, depth.vidData.data(), depth.props.vidWidth, depth.props.vidHeight, depth.pts, depth.props.depthWidth, depth.props.depthHeight, 10000.0f);
+
+            if (m_wsHeadCenter[2] != 0)
+            {
+                for (Vec4f& pt : depth.pts)
+                {
+                    for (int idx = 0; idx < 3; ++idx)
+                        pt[idx] -= m_wsHeadCenter[idx];
+                }
+                std::vector<Vec3f> alignPts1;
+                alignPts1.reserve(depth.pts.size() / 4);
+                for (const Vec4f& pt : depth.pts)
+                {
+                    if (!isinf(pt[0]))
+                        alignPts1.push_back(Vec3f(pt[0], pt[1], pt[2]));
+                }
+                if (m_prevPts.size() > 0)
+                {
+                    PTCloudAlign* pAlign = CreatePtCloudAlign(m_prevPts.data(), m_prevPts.size(), alignPts1.data(), alignPts1.size());
+                    Matrix44f mat;
+                    mat.mState = Matrix44f::AFFINE;
+                    identity(mat);
+                    int nsteps = 0;
+                    while (AlignStep(pAlign, mat.mData) < 2)
+                    {
+                        nsteps++;
+                    }
+
+                    FreePtCloudAlign(pAlign);
+                    m_alignedMtx *= mat;
+                }
+                std::swap(m_prevPts, alignPts1);
+            }
+
+            depth.alignMtx = m_alignedMtx;
             if (m_planevis)
-                m_planevis->SetDepthData(
-                vidData.data(), vidData.size(), ddata, props);
+                m_planevis->SetDepthData(depth);
             if (m_ptsvis)
-                m_ptsvis->SetDepthData(
-                vidData.data(), vidData.size(), ddata, props);
+                m_ptsvis->SetDepthData(depth);
         }
+
+        m_prevDepthTimestamp = depth.props.timestamp;
     }
 
     void World::OnFaceData(const FaceDataProps& props, const std::vector<float>& vertices, const std::vector<int16_t> indices)
     {
         if (!isPaused)
         {
-            Matrix44f wm, vm, pm;
-            wm.mState = Matrix44f::AFFINE;
-            vm.mState = Matrix44f::AFFINE;
-            pm.mState = Matrix44f::FULL;
-            memcpy(wm.mData, props.wMatf, sizeof(props.wMatf));
-            memcpy(vm.mData, props.viewMatf, sizeof(props.viewMatf));
-            memcpy(pm.mData, props.projMatf, sizeof(props.projMatf));
-            wm = vm * wm;
-            Vec4f pos;
-            xform(pos, wm, Vec4f(0, 0, 0, 1));
-            m_faceDepth = -pos[2];
-            wm = pm * wm;
-            xform(pos, wm, Vec4f(0, 0, 0, 1));
-            pos /= pos[3];
-            m_faceCenterXY = Vec2f(pos[0], pos[1]);
-
+            if (m_wsHeadCenter[2] == 0)
+            {
+                Matrix44f wm, vm, pm;
+                wm.mState = Matrix44f::AFFINE;
+                vm.mState = Matrix44f::AFFINE;
+                pm.mState = Matrix44f::FULL;
+                memcpy(wm.mData, props.wMatf, sizeof(props.wMatf));
+                memcpy(vm.mData, props.viewMatf, sizeof(props.viewMatf));
+                memcpy(pm.mData, props.projMatf, sizeof(props.projMatf));
+                wm = vm * wm;
+                Vec4f pos;
+                xform(pos, wm, Vec4f(0, 0, -0.025, 1));
+                m_wsHeadCenter = Point3f(pos[0], pos[1], pos[2]);
+                wm = pm * wm;
+                xform(pos, wm, Vec4f(0, 0, 0, 1));
+                pos /= pos[3];
+                m_faceCenterXY = Vec2f(pos[0], pos[1]);
+            }
             if (m_facevis)
                 m_facevis->OnFaceData(props, vertices, indices);
         }

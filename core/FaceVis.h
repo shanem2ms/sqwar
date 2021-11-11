@@ -19,6 +19,7 @@ namespace sam
         std::vector<float> m_vertices;
         std::vector<int16_t> m_indices;
         gmtl::Matrix44f  m_worldMat;
+        double m_faceTimestamp;
     public:
         FaceVis();
         ~FaceVis();

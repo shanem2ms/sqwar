@@ -40,6 +40,7 @@ namespace sam
         memcpy(vm.mData, props.viewMatf, sizeof(props.viewMatf));
         wm = vm* wm;
 
+        m_faceTimestamp = props.timestamp;
         m_ptsmtx.lock();
         m_worldMat = wm;
         m_indices.swap(i);
@@ -54,6 +55,8 @@ namespace sam
             sShader = Engine::Inst().LoadShader("vs_face.bin", "fs_planes.bin");
 
         if (m_vertices.size() == 0)
+            return;
+        if (fabs(m_faceTimestamp - ctx.m_deviceTimestamp) > 1 / 30.0)
             return;
         size_t ptsize;
         m_ptsmtx.lock();

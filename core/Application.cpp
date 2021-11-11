@@ -98,9 +98,10 @@ namespace sam
         m_engine->Resize(w, h);
         m_world->Layout(w, h);
     }
-    void Application::Tick(float time)
+    void Application::Tick(float time, double deviceTimestamp)
     {
-        m_engine->Tick(time);
+        m_deviceTimestamp = deviceTimestamp;
+        m_engine->Tick(time);        
     }
 
     void Application::Initialize(const char* folder)
@@ -118,6 +119,7 @@ namespace sam
     void Application::Draw()
     {
         sam::DrawContext ctx;
+        ctx.m_deviceTimestamp = m_deviceTimestamp;
         ctx.m_nearfar[0] = 0.1f;
         ctx.m_nearfar[1] = 25.0f;
         ctx.m_nearfar[2] = 100.0f;
@@ -188,14 +190,15 @@ namespace sam
         size_t sz = data.size() * sizeof(T);
         WriteFileData(path, (const char *)data.data(), sz);
     }
-    void Application::WriteDepthDataToFile(const std::vector<unsigned char> &vidData, const std::vector<float> &depthData, const DepthDataProps &props)
+
+    void Application::WriteDepthDataToFile(DepthData &depthData)
     {
         m_filemtx.lock();
         size_t val = 1234;
         WriteFileData(m_documentsPath, &val, sizeof(val));
-        WriteFileData(m_documentsPath, &props, sizeof(props));
-        WriteFileData(m_documentsPath, vidData);
-        WriteFileData(m_documentsPath, depthData);
+        WriteFileData(m_documentsPath, &depthData.props, sizeof(depthData.props));
+        WriteFileData(m_documentsPath, depthData.vidData);
+        WriteFileData(m_documentsPath, depthData.depthData);
         m_filemtx.unlock();
     }
     
@@ -211,18 +214,16 @@ namespace sam
     }
 //#define DOWRITEDATA 1
     
-    void Application::OnDepthBuffer(const std::vector<unsigned char> &vidData, const std::vector<float>& depthData,
-                                const DepthDataProps &props)
+    void Application::OnDepthBuffer(DepthData &depth)
     {
-
 #ifdef DOSENDDATA
         static Client c;
         c.SendData((const unsigned char *)depthData.data(), depthData.size() *
                            sizeof(float));
 #endif
         if (s_pInst->m_isrecording)
-            s_pInst->WriteDepthDataToFile(vidData, depthData, props);
-        s_pInst->m_world->OnDepthBuffer(vidData, depthData, props);
+            s_pInst->WriteDepthDataToFile(depth);
+        s_pInst->m_world->OnDepthBuffer(depth);
     }
 
     void Application::OnFaceData(const FaceDataProps &props, const std::vector<float> &vertices, const std::vector<int16_t> indices)

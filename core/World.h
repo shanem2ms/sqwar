@@ -16,6 +16,7 @@ namespace sam
     class FaceVis;
     class PtsVis;
     class PlanesVis;
+    class DepthData;
 
     class World
     {
@@ -31,14 +32,17 @@ namespace sam
         std::shared_ptr<PlanesVis> m_planevis;
         std::shared_ptr<PtsVis> m_ptsvis;
         std::shared_ptr<FaceVis> m_facevis;
-        float m_faceDepth;
+        Point3f m_wsHeadCenter;
         Vec2f m_faceCenterXY;
         int m_mode;
         int m_prevMode;
+        std::vector<Vec3f> m_prevPts;
+        Matrix44f m_alignedMtx;
+        double m_prevDepthTimestamp;
     public:
 
 
-        void OnDepthBuffer(const std::vector<unsigned char>& vidData, const std::vector<float>& depthData, const DepthDataProps &props);
+        void OnDepthBuffer(DepthData& depth);
         void OnFaceData(const FaceDataProps& props, const std::vector<float>& vertices, const std::vector<int16_t> indices);
         void Layout(int w, int h);
         World();
