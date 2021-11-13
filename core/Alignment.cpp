@@ -7,6 +7,7 @@
 #include <vector>
 #include <string>
 #include <sstream>
+#include "DepthPts.h"
 #include "PtsLib.h"
 
 using namespace gmtl;

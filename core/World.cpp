@@ -247,46 +247,62 @@ namespace sam
         if (!isPaused)
         {
             std::vector<float> filtereddata;
-            if (m_wsHeadCenter[2] != 0)
+            float faceDepth = -m_wsHeadCenter[2];
+            filtereddata = depth.depthData;
+            float d = 0.25f;
+            float min = faceDepth - d;
+            float max = faceDepth + d;
+            int px = 0, py = 0;
+                
+            Vec2f fc(m_faceCenterXY);
+            fc[0] = -fc[0];
+            fc[1] = -fc[1];
+            Vec2f v1((fc + Vec2f(1, 1)) * 0.5f);
+            Vec2f centerPixel(v1[0] * depth.props.depthWidth, v1[1] * depth.props.depthHeight);
+            float radiusSq = 150 * 150;
+                
+            for (auto itdata = filtereddata.begin() + 16; itdata !=
+                filtereddata.end(); ++itdata)
             {
-                float faceDepth = -m_wsHeadCenter[2];
-                filtereddata = depth.depthData;
-                float d = 0.25f;
-                float min = faceDepth - d;
-                float max = faceDepth + d;
-                int px = 0, py = 0;
-                
-                Vec2f fc(m_faceCenterXY);
-                fc[0] = -fc[0];
-                fc[1] = -fc[1];
-                Vec2f v1((fc + Vec2f(1, 1)) * 0.5f);
-                Vec2f centerPixel(v1[0] * depth.props.depthWidth, v1[1] * depth.props.depthHeight);
-                float radiusSq = 150 * 150;
-                
-                for (auto itdata = filtereddata.begin() + 16; itdata !=
-                    filtereddata.end(); ++itdata)
-                {
-                    float& val = *itdata;
+                float& val = *itdata;
                     
-                    float distSq = (px - centerPixel[0]) * (px - centerPixel[0]) +
-                        (py - centerPixel[1]) * (py - centerPixel[1]);
+                float distSq = (px - centerPixel[0]) * (px - centerPixel[0]) +
+                    (py - centerPixel[1]) * (py - centerPixel[1]);
 
-                    px++;
-                    if (px == depth.props.depthWidth)
-                    {
-                        px = 0;
-                        py++;
-                    }
-                    if (std::isnan(val) || std::isinf(val))
-                        continue;
-                    if (distSq > radiusSq || val < min || val > max)
-                        val = nanf("");
+                px++;
+                if (px == depth.props.depthWidth)
+                {
+                    px = 0;
+                    py++;
                 }
-
-                depth.depthData = filtereddata;
+                if (std::isnan(val) || std::isinf(val))
+                    continue;
+                if (distSq > radiusSq || val < min || val > max)
+                    val = nanf("");
             }
+            int dw = depth.props.depthWidth;
+            int dh = depth.props.depthHeight;
+            int size = 0;
+            std::vector<int> lodOffsets;
+            std::vector<int> lodSizes;
+            lodOffsets.push_back(0);
+            while (dw >= 16)
+            {
+                dw >>= 1;
+                dh >>= 1;
+                size += dw * dh;
+                lodOffsets.push_back(size);
+                lodSizes.push_back(dw * dh);
+            }
+            std::vector<float> lods(size);
+            DepthBuildLods(filtereddata.data()+16, lods.data(), depth.props.depthWidth, depth.props.depthHeight);
             
-            GetDepthPointsWithColor(depth.depthData, depth.vidData.data(), depth.props.vidWidth, depth.props.vidHeight, depth.pts, depth.props.depthWidth, depth.props.depthHeight, 10000.0f);
+            int lod = 2;
+            std::vector<float> lores(lodSizes[lod-1] + 16);
+            memcpy(lores.data(), filtereddata.data(), sizeof(float) * 16);
+            memcpy(lores.data() + 16, lods.data() + lodOffsets[lod - 1], lodSizes[lod - 1] * sizeof(float));
+
+            GetDepthPointsWithColor(lores, depth.vidData.data(), depth.props.vidWidth, depth.props.vidHeight, depth.pts, depth.props.depthWidth >> lod, depth.props.depthHeight >> lod, 10000.0f);
 
             if (m_wsHeadCenter[2] != 0)
             {

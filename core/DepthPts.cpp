@@ -150,15 +150,14 @@ namespace sam
         }
     }
 
-    void DepthBuildLods(float* dbuf, float* outpts, int depthWidth, int depthHeight, float maxdist)
+    void DepthBuildLods(float* dbuf, float* outpts, int depthWidth, int depthHeight)
     {
         std::vector<float> dinv;
         dinv.reserve(depthWidth * depthHeight);
         float* dend = dbuf + (depthWidth * depthHeight);
         for (float* dptr = dbuf; dptr != dend; ++dptr)
         {
-            if (std::isnan(*dptr) || std::isinf(*dptr) ||
-                (maxdist > 0 && *dptr > maxdist))
+            if (std::isnan(*dptr) || std::isinf(*dptr))
                 dinv.push_back(NAN);
             else
                 dinv.push_back(1.0f / *dptr);

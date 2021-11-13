@@ -37,4 +37,7 @@ namespace sam
     int AlignStep(PTCloudAlign* pthis, float* matrix);
 
     void FreePtCloudAlign(PTCloudAlign* pthis);
+
+    void DepthBuildLods(float* dbuf, float* outpts, int depthWidth, int depthHeight);
+
 }

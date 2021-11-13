@@ -68,12 +68,10 @@ namespace sam
         return !isnan(pt[0]) && !isinf(pt[0]);
     }
 
-#define PTEXPORT extern "C" __declspec (dllexport)
 
     void CalcNormals(Point3f* pts0, Vec3f* nrm, int dw, int dh);
 
     void CalcDepthPts(const Matrix44f& camMatrix, float* depthVals, int width, int height, std::vector<Point3f>& pOutPts);
-    void DepthBuildLods(float* dbuf, float* outpts, int depthWidth, int depthHeight, float maxDist = -1);
 
     inline void AAExpand(AABoxf& aabox, const Point3f& v)
     {
