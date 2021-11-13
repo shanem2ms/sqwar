@@ -1,5 +1,4 @@
 // dllmain.cpp : Defines the entry point for the DLL application.
-#include "pch.h"
 #include "kdtree++/kdtree.hpp"
 #include <gmtl/gmtl.h>
 #include <gmtl/Vec.h>
@@ -15,6 +14,8 @@ typedef Vec3f Vec3v;
 typedef AxisAnglef AxisAnglev;
 typedef Quatf Quatv;
 
+namespace sam
+{
 struct V3
 {
     typedef vfloat value_type;
@@ -251,7 +252,7 @@ public:
         vfloat invlen = 1.0 / ptsStart.size();
 
         for (int i = 0; i < ptsStart.size(); ++i)
-        {            
+        {
             vfloat x_src = ptsEnd[i][0];
             vfloat y_src = ptsEnd[i][1];
             vfloat z_src = ptsEnd[i][2];
@@ -305,7 +306,7 @@ public:
             rot[2] += uScore[2] * dvals[1];
             rot[3] += uScore[3] * dvals[2];
 
-            gmtl::normalize((Vec3f &)rot);
+            gmtl::normalize((Vec3f&)rot);
         }
 
         translate = trans;
@@ -317,7 +318,7 @@ public:
         const std::vector<Point3v>& ptsEnd,
         Vec3v& translate,
         Vec3f& rotate,
-        const Vec4f &dvals)
+        const Vec4f& dvals)
     {
         Vec3v trans(0, 0, 0);
         Vec3v rot(0, 0, 0);
@@ -331,7 +332,6 @@ public:
             totalScore = fabs(length(uScore) + length(tScore));
             char tmp[1024];
             sprintf_s(tmp, "%f  [%f %f %f] [%f %f %f]\n", totalScore, tScore[0], tScore[1], tScore[2], uScore[0], uScore[1], uScore[2]);
-            OutputDebugStringA(tmp);
             trans += tScore * dvals[0];
             rot[0] += uScore[0] * dvals[1];
             rot[1] += uScore[1] * dvals[2];
@@ -480,100 +480,98 @@ public:
 
 };
 
-extern "C" {
 
-    __declspec (dllexport) PtScorer* CreatePtScorer(vfloat* m_pts0, size_t ptCount0, vfloat* m_pts1, size_t ptCount1, vfloat* pmatrix,
-        int frameIdx)
-    {
-        return new PtScorer((Vec3v*)m_pts0, ptCount0 / 3, (Vec3v*)m_pts1, ptCount1 / 3, (Matrix44v*)pmatrix, frameIdx);
-    }
-
-    __declspec (dllexport) vfloat GetScore(PtScorer* pthis, vfloat* pmatrix)
-    {
-        return pthis->GetScore((Matrix44v&)*pmatrix);
-    }
-
-    __declspec (dllexport) void FreePtScorer(PtScorer* pthis)
-    {
-        delete pthis;
-    }
-
-    __declspec (dllexport) PTCloudAlign* CreatePtCloudAlign(vfloat* pts0, size_t ptCount0, vfloat* pts1, size_t ptCount1)
-    {
-        return new PTCloudAlign((Vec3v*)pts0, ptCount0 / 3, (Vec3v*)pts1, ptCount1 / 3);
-    }
-
-    __declspec (dllexport) int AlignStep(PTCloudAlign* pthis, vfloat* matrix)
-    {
-        return pthis->AlignStep((Matrix44v&)*matrix);
-    }
-
-    __declspec (dllexport) void FreePtCloudAlign(PTCloudAlign* pthis)
-    {
-        delete pthis;
-    }
-
-    inline float randfl()
-    {
-        const float invRand = 1.0f / RAND_MAX;
-        return rand()* invRand;
-    }
-
-    const int cnt = 20;
-    const int dcnt = cnt * 2;
-    const float rscale = 10.0f / cnt;;
-    const float vscale = 0.1f / cnt;;
-    std::vector<int> scores;
-
-    __declspec (dllexport) void BestFit(vfloat* pts0, size_t ptCount0, vfloat* pts1, size_t ptCount1,
-        Vec3f* outTranslate,
-        Vec4f* outRotate)
-    {
-        Point3v *p0 = (Point3v*)pts0;
-        std::vector<Point3v> pvec0(p0, p0 + ptCount0);
-
-        Point3v* p1 = (Point3v*)pts1;
-        std::vector<Point3v> pvec1(p1, p1 + ptCount1);
-        
-        Vec3f translate2 = Vec3f(0, 0, 0);
-        Vec4f rotate2 = Vec4f(0, 0, 1, 0);
-        float r = -5.50000000f, v = -0.04f;
-        if (scores.size() == 0)
-            scores.resize(dcnt * dcnt);
-
-        //for (int ridx = -cnt; ridx < cnt; ++ridx)
-        //{            
-           // for (int vidx = -cnt; vidx < cnt; ++vidx)
-            //{
-                translate2 = Vec3f(0, 0, 0);
-                rotate2 = Vec4f(0, 0, 1, 0);
-                //r = (float)ridx * rscale;
-                //v = (float)vidx * vscale;
-                float minval = PTCloudAlign::BestFit2(pvec0, pvec1,
-                    translate2, rotate2, Vec4f(-0.1f, r, v, 0));
-                char tmp[1024];
-                sprintf_s(tmp, "minval: %f\n", minval);
-                    OutputDebugStringA(tmp);
-                           // if (minval < 0.01f)
-               // {
-                //    scores[(ridx + cnt) * dcnt + vidx + cnt]++;
-               // }
-            //}
-        //}
-        
-
-        *outTranslate = translate2;
-        *outRotate = rotate2;
-    }
-
-    __declspec (dllexport) void CalcScores()
-    {
-        auto itmax = std::max_element(scores.begin(), scores.end());
-        size_t ival = itmax - scores.begin();
-        size_t ridx = ival / dcnt;
-        size_t vidx = ival % dcnt;
-        float r = ((int)ridx - cnt) * rscale;
-        float v = ((int)vidx - cnt) * vscale;
-    }
+PtScorer* CreatePtScorer(vfloat* m_pts0, size_t ptCount0, vfloat* m_pts1, size_t ptCount1, vfloat* pmatrix,
+    int frameIdx)
+{
+    return new PtScorer((Vec3v*)m_pts0, ptCount0 / 3, (Vec3v*)m_pts1, ptCount1 / 3, (Matrix44v*)pmatrix, frameIdx);
 }
 
+vfloat GetScore(PtScorer* pthis, vfloat* pmatrix)
+{
+    return pthis->GetScore((Matrix44v&)*pmatrix);
+}
+
+void FreePtScorer(PtScorer* pthis)
+{
+    delete pthis;
+}
+
+PTCloudAlign* CreatePtCloudAlign(gmtl::Vec3f* pts0, size_t ptCount0, gmtl::Vec3f* pts1, size_t ptCount1)
+{
+    return new PTCloudAlign((Vec3v*)pts0, ptCount0 / 3, (Vec3v*)pts1, ptCount1 / 3);
+}
+
+int AlignStep(PTCloudAlign* pthis, vfloat* matrix)
+{
+    return pthis->AlignStep((Matrix44v&)*matrix);
+}
+
+void FreePtCloudAlign(PTCloudAlign* pthis)
+{
+    delete pthis;
+}
+
+inline float randfl()
+{
+    const float invRand = 1.0f / RAND_MAX;
+    return rand() * invRand;
+}
+
+const int cnt = 20;
+const int dcnt = cnt * 2;
+const float rscale = 10.0f / cnt;;
+const float vscale = 0.1f / cnt;;
+std::vector<int> scores;
+
+void BestFit(vfloat* pts0, size_t ptCount0, vfloat* pts1, size_t ptCount1,
+    Vec3f* outTranslate,
+    Vec4f* outRotate)
+{
+    Point3v* p0 = (Point3v*)pts0;
+    std::vector<Point3v> pvec0(p0, p0 + ptCount0);
+
+    Point3v* p1 = (Point3v*)pts1;
+    std::vector<Point3v> pvec1(p1, p1 + ptCount1);
+
+    Vec3f translate2 = Vec3f(0, 0, 0);
+    Vec4f rotate2 = Vec4f(0, 0, 1, 0);
+    float r = -5.50000000f, v = -0.04f;
+    if (scores.size() == 0)
+        scores.resize(dcnt * dcnt);
+
+    //for (int ridx = -cnt; ridx < cnt; ++ridx)
+    //{            
+        // for (int vidx = -cnt; vidx < cnt; ++vidx)
+        //{
+    translate2 = Vec3f(0, 0, 0);
+    rotate2 = Vec4f(0, 0, 1, 0);
+    //r = (float)ridx * rscale;
+    //v = (float)vidx * vscale;
+    float minval = PTCloudAlign::BestFit2(pvec0, pvec1,
+        translate2, rotate2, Vec4f(-0.1f, r, v, 0));
+    char tmp[1024];
+    sprintf_s(tmp, "minval: %f\n", minval);
+    // if (minval < 0.01f)
+// {
+//    scores[(ridx + cnt) * dcnt + vidx + cnt]++;
+// }
+//}
+//}
+
+
+    *outTranslate = translate2;
+    *outRotate = rotate2;
+}
+
+void CalcScores()
+{
+    auto itmax = std::max_element(scores.begin(), scores.end());
+    size_t ival = itmax - scores.begin();
+    size_t ridx = ival / dcnt;
+    size_t vidx = ival % dcnt;
+    float r = ((int)ridx - cnt) * rscale;
+    float v = ((int)vidx - cnt) * vscale;
+}
+
+}
