@@ -157,7 +157,7 @@ namespace sam
         float* dend = dbuf + (depthWidth * depthHeight);
         for (float* dptr = dbuf; dptr != dend; ++dptr)
         {
-            if (std::isnan(*dptr) || std::isinf(*dptr))
+            if (isnan(*dptr) || isinf(*dptr))
                 dinv.push_back(NAN);
             else
                 dinv.push_back(1.0f / *dptr);
@@ -184,7 +184,7 @@ namespace sam
                     float vf = 0;
                     for (int i = 0; i < 4; ++i)
                     {
-                        if (!std::isnan(v[i]))
+                        if (!isnan(v[i]))
                         {
                             vf += v[i];
                             t += 1.0f;
@@ -204,7 +204,7 @@ namespace sam
 
         for (float* ptr = outpts; ptr < dptr; ++ptr)
         {
-            *ptr = !std::isnan(*ptr) ? 1.0f / *ptr : NAN;
+            *ptr = !isnan(*ptr) ? 1.0f / *ptr : NAN;
         }
     }
 

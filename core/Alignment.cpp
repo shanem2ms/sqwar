@@ -331,7 +331,7 @@ public:
             GetDerivatives(ptsStart, ptsEnd, rot, trans, uScore, tScore);
             totalScore = fabs(length(uScore) + length(tScore));
             char tmp[1024];
-            sprintf_s(tmp, "%f  [%f %f %f] [%f %f %f]\n", totalScore, tScore[0], tScore[1], tScore[2], uScore[0], uScore[1], uScore[2]);
+            sprintf(tmp, "%f  [%f %f %f] [%f %f %f]\n", totalScore, tScore[0], tScore[1], tScore[2], uScore[0], uScore[1], uScore[2]);
             trans += tScore * dvals[0];
             rot[0] += uScore[0] * dvals[1];
             rot[1] += uScore[1] * dvals[2];
@@ -551,7 +551,7 @@ void BestFit(vfloat* pts0, size_t ptCount0, vfloat* pts1, size_t ptCount1,
     float minval = PTCloudAlign::BestFit2(pvec0, pvec1,
         translate2, rotate2, Vec4f(-0.1f, r, v, 0));
     char tmp[1024];
-    sprintf_s(tmp, "minval: %f\n", minval);
+    sprintf(tmp, "minval: %f\n", minval);
     // if (minval < 0.01f)
 // {
 //    scores[(ridx + cnt) * dcnt + vidx + cnt]++;

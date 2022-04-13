@@ -602,7 +602,7 @@ bool update()
         // if no other draw calls are submitted to view 0.
         bgfx::touch(0);
         
-        app.Tick(0);
+        app.Tick(0, 0);
         app.Draw();
         // Advance to next frame. Rendering thread will be kicked to
         // process submitted rendering primitives.
