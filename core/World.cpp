@@ -297,12 +297,18 @@ namespace sam
             std::vector<float> lods(size);
             DepthBuildLods(filtereddata.data()+16, lods.data(), depth.props.depthWidth, depth.props.depthHeight);
             
-            int lod = 2;
-            std::vector<float> lores(lodSizes[lod-1] + 16);
-            memcpy(lores.data(), filtereddata.data(), sizeof(float) * 16);
-            memcpy(lores.data() + 16, lods.data() + lodOffsets[lod - 1], lodSizes[lod - 1] * sizeof(float));
+            int lod = 0;
+            
+            if (lod > 0)
+            {
+                std::vector<float> lores(lodSizes[lod - 1] + 16);
+                memcpy(lores.data(), filtereddata.data(), sizeof(float) * 16);
+                memcpy(lores.data() + 16, lods.data() + lodOffsets[lod - 1], lodSizes[lod - 1] * sizeof(float));
+                GetDepthPointsWithColor(lores, depth.vidData.data(), depth.props.vidWidth, depth.props.vidHeight, depth.pts, depth.props.depthWidth >> lod, depth.props.depthHeight >> lod, 10000.0f);
+            }
+            else
+                GetDepthPointsWithColor(depth.depthData, depth.vidData.data(), depth.props.vidWidth, depth.props.vidHeight, depth.pts, depth.props.depthWidth >> lod, depth.props.depthHeight >> lod, 10000.0f);
 
-            GetDepthPointsWithColor(lores, depth.vidData.data(), depth.props.vidWidth, depth.props.vidHeight, depth.pts, depth.props.depthWidth >> lod, depth.props.depthHeight >> lod, 10000.0f);
 
             if (m_wsHeadCenter[2] != 0)
             {

@@ -6,6 +6,7 @@ set (BGFX_INCLUDE_ROOT ${CMAKE_INSTALL_PREFIX}/include)
 set (BGFX_INCLUDE ${BGFX_INCLUDE_ROOT}/bgfx)
 set (BGFX_LIB ${CMAKE_INSTALL_PREFIX}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${MainBinaryDir})
+include(/homep4/vcpkg/scripts/buildsystems/vcpkg.cmake)
 
 ################################################################################
 # Target
@@ -28,8 +29,10 @@ set (PLATFORMLIBS
 "d3d11;"
 "Shcore;")
 
+find_package(ffmpeg REQUIRED)
 
 target_link_libraries(${PROJECT_NAME} LINK_PUBLIC 
+    ${FFMPEG_LIBRARIES}
     ${BGFX_LIB}/bgfx.lib 
     ${BGFX_LIB}/astc-codec.lib 
     ${BGFX_LIB}/bimg.lib 

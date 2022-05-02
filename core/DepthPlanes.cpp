@@ -121,6 +121,8 @@ namespace sam
         {
             int ry = std::min(m_buffer.height - 1, y + m_rect.y);
             int rx = std::min(m_buffer.width - 1, x + m_rect.x);
+
+            //126740
             return m_buffer.depthPths[ry * m_buffer.width + rx];
         }
 
