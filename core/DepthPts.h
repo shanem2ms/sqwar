@@ -40,4 +40,6 @@ namespace sam
 
     void DepthBuildLods(float* dbuf, float* outpts, int depthWidth, int depthHeight);
 
+    void ConvertDepthToYUV(float* data, int width, int height, float maxDepth, uint8_t* ydata, uint8_t* udata, uint8_t* vdata);
+
 }

@@ -33,10 +33,9 @@ find_package(ffmpeg REQUIRED)
 
 target_link_libraries(${PROJECT_NAME} LINK_PUBLIC 
     ${FFMPEG_LIBRARIES}
-    ${BGFX_LIB}/bgfx.lib 
-    ${BGFX_LIB}/astc-codec.lib 
-    ${BGFX_LIB}/bimg.lib 
-    ${BGFX_LIB}/bx.lib
+    bgfx::bgfx
+    bgfx::bimg
+    bgfx::bx
     mdns
     core 
     ${PLATFORMLIBS}

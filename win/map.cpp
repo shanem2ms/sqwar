@@ -43,7 +43,8 @@ LRESULT KeyboardHookproc(
 
 int StartWrite(uint32_t w, uint32_t h);
 void FinishWrite();
-static void pushFrame(uint8_t* data);
+static void pushVidFrame(uint8_t* data);
+static void pushYUV420Frame(uint8_t* ydata, uint8_t* udata, uint8_t* vdata);
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     _In_opt_ HINSTANCE hPrevInstance,
@@ -281,7 +282,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 static std::fstream s_binfile;
 
-bool ReadNextBlock(std::vector<unsigned char>& data)
+bool ReadNextBlock(std::vector<uint8_t>& data)
 {
     if (!s_binfile.is_open())
         s_binfile = std::fstream("C:\\homep4\\\sqwar\\file.binary", std::ios::binary | std::ios::in);
@@ -303,7 +304,7 @@ bool ReadNextBlock(std::vector<unsigned char>& data)
 struct DepthFrame
 {
     sam::DepthDataProps props;
-    std::vector<unsigned char> vidData;
+    std::vector<uint8_t> vidData;
     std::vector<float> depthData;
 };
 
@@ -321,23 +322,24 @@ static double sStartTime, sEndTime;
 void ReadAllBlocks()
 {
     size_t sz = 0;
-    std::vector<unsigned char> data;
-    while (ReadNextBlock(data))
+    std::vector<uint8_t> data;
+    bool moreData = true;
+    while (moreData && ReadNextBlock(data))
     {
-        if (depthFrames.size() > 1024)
-            break;
         s_binfile.read((char*)data.data(), sz);
+        size_t streampos = s_binfile.tellg();
         if (data.size() == 8)
         {
             size_t val = *(size_t*)data.data();
+
             if (val == 1234)
             {
                 DepthFrame df;
                 ReadNextBlock(data);
                 memcpy(&df.props, data.data(), data.size());
-                ReadNextBlock(df.vidData);
-                std::vector<unsigned char> ddata;
-                ReadNextBlock(ddata);
+                moreData &= ReadNextBlock(df.vidData);
+                std::vector<uint8_t> ddata;
+                moreData &= ReadNextBlock(ddata);
                 df.depthData.resize(ddata.size() / sizeof(float));
                 memcpy(df.depthData.data(), ddata.data(), ddata.size());
                 depthFrames.push_back(df);
@@ -348,10 +350,10 @@ void ReadAllBlocks()
                 ReadNextBlock(data);
                 memcpy(&ff.props, data.data(), sizeof(ff.props));
 
-                ReadNextBlock(data);
+                moreData &= ReadNextBlock(data);
                 ff.vertices.resize(data.size() / sizeof(float));
                 memcpy(ff.vertices.data(), data.data(), data.size());
-                ReadNextBlock(data);
+                moreData &= ReadNextBlock(data);
                 ff.indices.resize(data.size() / sizeof(int16_t));
                 memcpy(ff.indices.data(), data.data(), data.size());
                 faceFrames.push_back(ff);
@@ -378,6 +380,10 @@ static double sCurtime = sStartTime;
 static size_t curDepthIdx = 0;
 static size_t curFaceIdx = 0;
 
+namespace sam
+{
+    void ConvertDepthToYUV(float* data, int width, int height, float maxDepth, uint8_t* ydata, uint8_t* udata, uint8_t* vdata);
+}
 void Tick()
 {
     if (!bgfxInit)
@@ -389,6 +395,18 @@ void Tick()
     {
         ReadAllBlocks();
         sCurtime = sStartTime;
+        StartWrite(depthFrames[0].props.depthWidth,
+            depthFrames[0].props.depthHeight);
+        for (auto& frame : depthFrames)
+        {
+            std::vector<uint8_t> depthYData(frame.props.depthWidth * frame.props.depthHeight);
+            std::vector<uint8_t> depthUData((frame.props.depthWidth * frame.props.depthHeight) / 4);
+            std::vector<uint8_t> depthVData((frame.props.depthWidth * frame.props.depthHeight) / 4);
+            sam::ConvertDepthToYUV(frame.depthData.data() + 16, frame.props.depthWidth,
+                frame.props.depthHeight, 10.0f, depthYData.data(), depthUData.data(), depthVData.data());
+            pushYUV420Frame(depthYData.data(), depthUData.data(), depthVData.data());
+        }
+        FinishWrite();
     }
 
     size_t prevDepth = curDepthIdx;
@@ -402,13 +420,7 @@ void Tick()
         curFaceIdx++;
     
     
-    StartWrite(depthFrames[0].props.vidWidth,
-        depthFrames[0].props.vidHeight);
-    for (auto& frame : depthFrames)
-    {
-        pushFrame(frame.vidData.data());
-    }
-    FinishWrite();
+
     if (firsttick || curDepthIdx != prevDepth)
     {
         sam::DepthData dd;
@@ -501,7 +513,7 @@ int frameCounter = 0;
 AVFormatContext* ofctx = nullptr;
 AVOutputFormat* oformat = nullptr;
 AVStream* stream = nullptr;
-int fps = 4;
+int fps = 30;
 int bitrate = 2000;
 
 struct YCrCbData
@@ -513,15 +525,34 @@ struct YCrCbData
 };
 
 
-static void pushFrame(uint8_t* data)
+static void pushVidFrame(uint8_t* data)
 {
     YCrCbData* yuvData = (YCrCbData*)data;
     yuvData->cbCrOffset -= yuvData->yOffset;
     yuvData->yOffset = 0;
 
     int yPitch = yuvData->yRowBytes;
-    unsigned char* ydata = data + sizeof(YCrCbData);
-    unsigned char* uvData = ydata + yuvData->cbCrOffset;
+    uint8_t* ydata = data + sizeof(YCrCbData);    
+    int dstline = cctx->width / 2;
+    int uvheight = cctx->height / 2;
+    uint8_t* udata = new uint8_t[dstline * uvheight];
+    uint8_t* vdata = new uint8_t[dstline * uvheight];
+    uint8_t* uvData = ydata + yuvData->cbCrOffset;
+
+    uint8_t* uDstPtr = udata;
+    uint8_t* vDstPtr = vdata;
+    uint8_t* uvSrcPtr = uvData;
+    for (int y = 0; y < uvheight; ++y)
+    {
+        for (int idx = 0; idx < dstline; ++idx)
+        {
+            uDstPtr[idx] = uvSrcPtr[idx * 2];
+            vDstPtr[idx] = uvSrcPtr[idx * 2 + 1];
+        }
+        uDstPtr += dstline;
+        vDstPtr += dstline;
+        uvSrcPtr += yuvData->cbCrRowBytes;
+    }
 
     int err;
     if (!videoFrame) {
@@ -536,24 +567,75 @@ static void pushFrame(uint8_t* data)
         }
     }
 
-    /*
+
     if (!swsCtx) {
-        swsCtx = sws_getContext(cctx->width, cctx->height, AV_PIX_FMT_RGB24, cctx->width, cctx->height,
+        swsCtx = sws_getContext(cctx->width, cctx->height, AV_PIX_FMT_YUV420P, cctx->width, cctx->height,
             AV_PIX_FMT_YUV420P, SWS_BICUBIC, 0, 0, 0);
     }
 
-    int inLinesize[1] = { 3 * cctx->width };
+    int inLinesize[3] = { yuvData->yRowBytes, dstline, dstline };
+    const uint8_t const * linedata[3] = { ydata, udata, vdata};
 
     // From RGB to YUV
-    sws_scale(swsCtx, (const uint8_t* const*)&data, inLinesize, 0, cctx->height, videoFrame->data,
-        videoFrame->linesize);*/
+    sws_scale(swsCtx, linedata, inLinesize, 0, cctx->height, videoFrame->data,
+        videoFrame->linesize);
     //90k
     videoFrame->pts = (frameCounter++) * stream->time_base.den / (stream->time_base.num * fps);
-    videoFrame->data[0] = ydata;
-    videoFrame->linesize[0] = yuvData->yRowBytes;
-    videoFrame->data[1] = uvData;
-    videoFrame->linesize[1] = yuvData->cbCrRowBytes;
-    //videoFrame->pts = (1.0/fps) * 1000 * (frameCounter++);
+
+
+    //std::cout << videoFrame->pts << " " << cctx->time_base.num << " " << cctx->time_base.den << " " << frameCounter
+      //        << std::endl;
+
+    if ((err = avcodec_send_frame(cctx, videoFrame)) < 0) {
+        std::cout << "Failed to send frame" << err << std::endl;
+        return;
+    }
+    AVPacket pkt;
+    av_init_packet(&pkt);
+    pkt.data = NULL;
+    pkt.size = 0;
+    pkt.flags |= AV_PKT_FLAG_KEY;
+    int ret = 0;
+    if ((ret = avcodec_receive_packet(cctx, &pkt)) == 0) {
+        static int counter = 0;
+        std::cout << "pkt key: " << (pkt.flags & AV_PKT_FLAG_KEY) << " " << pkt.size << " " << (counter++) << std::endl;
+        uint8_t* size = ((uint8_t*)pkt.data);
+        std::cout << "first: " << (int)size[0] << " " << (int)size[1] << " " << (int)size[2] << " " << (int)size[3]
+            << " " << (int)size[4] << " " << (int)size[5] << " " << (int)size[6] << " " << (int)size[7]
+            << std::endl;
+
+        av_interleaved_write_frame(ofctx, &pkt);
+    }
+    std::cout << "push: " << ret << std::endl;
+    av_packet_unref(&pkt);
+
+    delete[]udata;
+    delete[]vdata;
+}
+
+static void pushYUV420Frame(uint8_t* ydata, uint8_t* udata, uint8_t* vdata)
+{    
+    int err;
+    if (!videoFrame) {
+        videoFrame = av_frame_alloc();
+        videoFrame->format = AV_PIX_FMT_YUV420P;
+        videoFrame->width = cctx->width;
+        videoFrame->height = cctx->height;
+
+        if ((err = av_frame_get_buffer(videoFrame, 32)) < 0) {
+            std::cout << "Failed to allocate picture" << err << std::endl;
+            return;
+        }
+    }
+
+    int inLinesize[3] = { cctx->width, cctx->width/2, cctx->width/2};
+    const uint8_t const* linedata[3] = { ydata, udata, vdata };
+    
+    memcpy(videoFrame->data, linedata, sizeof(linedata));
+    memcpy(videoFrame->linesize, inLinesize, sizeof(inLinesize));
+    //90k
+    videoFrame->pts = (frameCounter++) * stream->time_base.den / (stream->time_base.num * fps);
+
 
     //std::cout << videoFrame->pts << " " << cctx->time_base.num << " " << cctx->time_base.den << " " << frameCounter
       //        << std::endl;
@@ -581,7 +663,6 @@ static void pushFrame(uint8_t* data)
     std::cout << "push: " << ret << std::endl;
     av_packet_unref(&pkt);
 }
-
 static void finish()
 {
     // DELAYED FRAMES

@@ -208,5 +208,63 @@ namespace sam
         }
     }
 
+
+    void ConvertDepthToYUV(float* data, int width, int height, float maxDepth, uint8_t* ydata, uint8_t* udata, uint8_t* vdata)
+    {
+        float scalar = 254.0f / maxDepth;
+        float* line0 = data;
+        uint8_t* yout0 = ydata;
+        uint8_t* uout = udata;
+        uint8_t* vout = vdata;
+        for (int y = 0; y < height; y += 2)
+        {
+            float* line1 = line0 + width;
+            uint8_t* yout1 = yout0 + width;
+            for (int x = 0; x < width; x += 2)
+            {
+                float v[4] = { line0[x],
+                    line0[x + 1],
+                    line1[x],
+                    line1[x + 1] };
+                uint8_t y[4];
+                uint8_t* outy[4] = {
+                    &yout0[x],
+                    &yout0[x + 1],
+                    &yout1[x],
+                    &yout1[x + 1]
+                };
+                float remavg = 0;
+                float remtot = 0;
+                for (int idx = 0; idx < 4; ++idx)
+                {
+                    if (isnan(v[idx]) || isinf(v[idx]))
+                    { y[idx] = 255; }
+                    else {
+                        float sv = v[idx] * scalar;
+                        float rem = fmod(sv, 1);
+                        remavg += rem;
+                        remtot++;
+                        y[idx] = (uint8_t)sv;
+                    }
+                    *outy[idx] = y[idx];
+                }
+                if (remtot > 0)
+                {
+                    remavg /= remtot;
+                    uout[x/2] = (uint8_t)(remavg * 255.0f); 
+                    vout[x / 2] = 0;
+                }
+                else
+                {
+                    uout[x / 2] = vout[x / 2] = 0;
+                }
+            }
+            line0 += width * 2;
+            yout0 += width * 2;
+            uout += width / 2;
+            vout += width / 2;
+        }
+    }
+
 }
 
