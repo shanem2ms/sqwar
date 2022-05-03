@@ -486,28 +486,29 @@ struct YCrCbData
         cbd.cbCrOffset = CFSwapInt32BigToHost(bufferInfo->componentInfoCbCr.offset);
         cbd.cbCrRowBytes = CFSwapInt32BigToHost(bufferInfo->componentInfoCbCr.rowBytes);
         
-        
-        std::vector<unsigned char> vidData(datasize - cbd.yOffset + sizeof(YCrCbData));
-        memcpy(vidData.data(), &cbd, + sizeof(YCrCbData));
-        memcpy(vidData.data() + + sizeof(YCrCbData), ((char *)pVidBuffer) + cbd.yOffset, vidData.size());
+        sam::DepthData ddata;
+        ddata.vidData.resize(datasize - cbd.yOffset + sizeof(YCrCbData));
+        memcpy(ddata.vidData.data(), &cbd, + sizeof(YCrCbData));
+        memcpy(ddata.vidData.data() + + sizeof(YCrCbData), ((char *)pVidBuffer) + cbd.yOffset, ddata.vidData.size());
         CVPixelBufferUnlockBaseAddress(imgBuffer, kCVPixelBufferLock_ReadOnly);
     
+        
         datasize = CVPixelBufferGetDataSize(depthBuffer);
-        std::vector<float> depthData(datasize / sizeof(float) +  16);
-        memcpy(depthData.data(), mtxarray, sizeof(mtxarray));
+        ddata.depthData.resize(datasize / sizeof(float) +  16);
+        memcpy(ddata.depthData.data(), mtxarray, sizeof(mtxarray));
         
         CVPixelBufferLockBaseAddress(depthBuffer, kCVPixelBufferLock_ReadOnly);
         void *pDepthBuffer = CVPixelBufferGetBaseAddress(depthBuffer);
-        memcpy(depthData.data() + 16, pDepthBuffer, depthData.size() * sizeof(float));
+        memcpy(ddata.depthData.data() + 16, pDepthBuffer, ddata.depthData.size() * sizeof(float));
         CVPixelBufferUnlockBaseAddress(depthBuffer, kCVPixelBufferLock_ReadOnly);
-        sam::DepthDataProps wdp;
-        wdp.timestamp = frame.timestamp;
-        wdp.depthWidth = CVPixelBufferGetWidth(depthBuffer);
-        wdp.depthHeight = CVPixelBufferGetHeight(depthBuffer);
-        wdp.vidWidth = CVPixelBufferGetWidth(imgBuffer);
-        wdp.vidHeight = CVPixelBufferGetHeight(imgBuffer);
-        wdp.depthMode = wdp.vidMode = 0;
-        entry::s_ctx->m_pApplication->OnDepthBuffer(vidData, depthData, wdp);
+        
+        ddata.props.timestamp = frame.timestamp;
+        ddata.props.depthWidth = CVPixelBufferGetWidth(depthBuffer);
+        ddata.props.depthHeight = CVPixelBufferGetHeight(depthBuffer);
+        ddata.props.vidWidth = CVPixelBufferGetWidth(imgBuffer);
+        ddata.props.vidHeight = CVPixelBufferGetHeight(imgBuffer);
+        ddata.props.depthMode = ddata.props.vidMode = 0;
+        entry::s_ctx->m_pApplication->OnDepthBuffer(ddata);
     }
 }
 
