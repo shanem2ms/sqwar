@@ -226,37 +226,60 @@ namespace sam
                     line0[x + 1],
                     line1[x],
                     line1[x + 1] };
-                uint8_t y[4];
                 uint8_t* outy[4] = {
                     &yout0[x],
                     &yout0[x + 1],
                     &yout1[x],
                     &yout1[x + 1]
                 };
-                float remavg = 0;
-                float remtot = 0;
+                int u_yval = -1;
+                float u_remavg = 0;
+                float u_remtot = 0;
+                int v_yval = -1;
+                float v_remavg = 0;
+                float v_remtot = 0;
                 for (int idx = 0; idx < 4; ++idx)
                 {
+                    uint8_t y;
                     if (isnan(v[idx]) || isinf(v[idx]))
-                    { y[idx] = 255; }
+                    { y = 255; }
                     else {
                         float sv = v[idx] * scalar;
                         float rem = fmod(sv, 1);
-                        remavg += rem;
-                        remtot++;
-                        y[idx] = (uint8_t)sv;
+                        y = (uint8_t)sv;
+                        if (u_yval < 0 || u_yval == y)
+                        {
+                            u_remavg += rem;
+                            u_remtot++;
+                            u_yval = y;
+                        }
+                        else {
+                            v_remavg += rem;
+                            v_remtot++;
+                            v_yval = y;
+                        }
+
                     }
-                    *outy[idx] = y[idx];
+                    *outy[idx] = y;
                 }
-                if (remtot > 0)
+                if (u_remtot > 0)
                 {
-                    remavg /= remtot;
-                    uout[x/2] = (uint8_t)(remavg * 255.0f); 
-                    vout[x / 2] = 0;
+                    u_remavg /= u_remtot;
+                    uout[x/2] = (uint8_t)(u_remavg * 255.0f); 
                 }
                 else
                 {
-                    uout[x / 2] = vout[x / 2] = 0;
+                    uout[x / 2] = 0;
+                }
+
+                if (v_remtot > 0)
+                {
+                    v_remavg /= v_remtot;
+                    vout[x / 2] = (uint8_t)(v_remavg * 255.0f);
+                }
+                else
+                {
+                    vout[x / 2] = 0;
                 }
             }
             line0 += width * 2;
@@ -266,5 +289,89 @@ namespace sam
         }
     }
 
+    void ConvertYUVToDepth(uint8_t* ydata, uint8_t* udata, uint8_t* vdata, int width, int height, float maxDepth, float* depthData)
+    {
+        float scalar = maxDepth / 254.0f;
+        float* line0 = depthData;
+        uint8_t* yin0 = ydata;
+        uint8_t* uin = udata;
+        uint8_t* vin = vdata;
+        for (int y = 0; y < height; y += 2)
+        {
+            float* line1 = line0 + width;
+            uint8_t* yin1 = yin0 + width;
+            for (int x = 0; x < width; x += 2)
+            {
+                float *outv[4] = { &line0[x],
+                    &line0[x + 1],
+                    &line1[x],
+                    &line1[x + 1] };
+                uint8_t iny[4] = {
+                    yin0[x],
+                    yin0[x + 1],
+                    yin1[x],
+                    yin1[x + 1]
+                };
+
+                int u_yval = -1;
+                int v_yval = -1;
+
+                float remavg = 0;
+                float remtot = 0;
+                float u_rem = uin[x / 2] / 255.0f;
+                float v_rem = vin[x / 2] / 255.0f;
+                for (int idx = 0; idx < 4; ++idx)
+                {
+                    uint8_t y = iny[idx];
+                    if (y == 255)
+                    {                        
+                        *outv[idx] = NAN;
+                    }
+                    else
+                    {
+                        float rem;
+                        if (u_yval < 0 || u_yval == y) {
+                            rem = u_rem; u_yval = y;
+                        }
+                        else 
+                            rem = v_rem;
+
+                        float sv = (float)iny[idx] + rem;
+                        *outv[idx] = sv * scalar;
+                    }
+                }
+            }
+            line0 += width * 2;
+            yin0 += width * 2;
+            uin += width / 2;
+            vin += width / 2;
+        }
+    }
+
+    void CalcDepthError(const std::vector<float>& d1, const std::vector<float>& d2,
+        float &outAvgErr, float &outMaxErr)
+    {
+        auto itD1 = d1.begin();
+        auto itD2 = d2.begin();
+        float totalErr = 0;
+        float maxErr = 0;
+        float totalCnt = 0;
+        while (itD1 != d1.end())
+        {
+            if (!isnan(*itD1) && !isinf(*itD1))
+            {
+                float diff = *itD1 - *itD2;
+                diff = diff * diff;
+                maxErr = std::max(maxErr, diff);
+                totalErr += diff;
+                totalCnt++;
+            }
+            ++itD1;
+            ++itD2;
+        }
+
+        outAvgErr = sqrt(totalErr / totalCnt);
+        outMaxErr = sqrt(maxErr);
+    }
 }
 
