@@ -307,7 +307,10 @@ static    void* m_device = NULL;
 
 @interface ARDelegate : NSObject<ARSessionDelegate>
 {
-    
+    AVAssetWriter *videoWriter;
+    NSDictionary *videoSettings;
+    AVAssetWriterInput* writerInput;
+    AVAssetWriterInputPixelBufferAdaptor *adaptor;
 }
 @end
 
@@ -471,6 +474,7 @@ struct YCrCbData
     
     CVPixelBufferRef imgBuffer = [frame capturedImage];
 
+    [adaptor appendPixelBuffer:imgBuffer withPresentationTime:kCMTimeZero];
     CVPixelBufferRef depthBuffer = pDepthData.depthDataMap;
     if (CVPixelBufferGetPixelFormatType(imgBuffer) == kCVPixelFormatType_420YpCbCr8BiPlanarFullRange &&
         CVPixelBufferGetPixelFormatType(depthBuffer) == kCVPixelFormatType_DepthFloat32)
@@ -557,27 +561,27 @@ didUpdateAnchors:(NSArray<__kindof ARAnchor *> *)anchors
     }
 }
 
--(void)writeImageAsMovie:(NSArray *)array toPath:(NSString*)path size:(CGSize)size duration:(int)duration
+-(void)writeImageAsMovie:(NSString*)path size:(CGSize)size duration:(int)duration
 {
     NSError *error = nil;
 
-    AVAssetWriter *videoWriter = [[AVAssetWriter alloc] initWithURL:
+    videoWriter = [[AVAssetWriter alloc] initWithURL:
                                   [NSURL fileURLWithPath:path] fileType:AVFileTypeQuickTimeMovie
                                                               error:&error];
 
     NSParameterAssert(videoWriter);
 
-    NSDictionary *videoSettings = [NSDictionary dictionaryWithObjectsAndKeys:
+    videoSettings = [NSDictionary dictionaryWithObjectsAndKeys:
                                    AVVideoCodecH264, AVVideoCodecKey,
                                    [NSNumber numberWithInt:size.width], AVVideoWidthKey,
                                    [NSNumber numberWithInt:size.height], AVVideoHeightKey,
                                    nil];
-    AVAssetWriterInput* writerInput = [AVAssetWriterInput
+    writerInput = [AVAssetWriterInput
                                        assetWriterInputWithMediaType:AVMediaTypeVideo
                                        outputSettings:videoSettings];
 
 
-    AVAssetWriterInputPixelBufferAdaptor *adaptor = [AVAssetWriterInputPixelBufferAdaptor
+    adaptor = [AVAssetWriterInputPixelBufferAdaptor
                                                      assetWriterInputPixelBufferAdaptorWithAssetWriterInput:writerInput
                                                      sourcePixelBufferAttributes:nil];
 
@@ -591,51 +595,10 @@ didUpdateAnchors:(NSArray<__kindof ARAnchor *> *)anchors
 
     CVPixelBufferRef buffer = NULL;
 
-    //convert uiimage to CGImage.
-
-    for (int i = 0; i < [array count]; i++) {  //NSMutableArray
-        buffer = [self pixelBufferFromCGImage:[[array objectAtIndex:i] CGImage] width:1024 height:768];
-        NSLog(@"%@",[[array objectAtIndex:i] CGImage]);
-    }
-    [adaptor appendPixelBuffer:buffer withPresentationTime:kCMTimeZero];
-
-    //Write samples:
 
 
     //Finish the session:
     [writerInput markAsFinished];
 }
 
--(CVPixelBufferRef) pixelBufferFromCGImage: (CGImageRef) image width:(size_t)width height:(size_t)height
-{
-    NSDictionary *options = [NSDictionary dictionaryWithObjectsAndKeys:
-                             [NSNumber numberWithBool:YES],   kCVPixelBufferCGImageCompatibilityKey,
-                             [NSNumber numberWithBool:YES], kCVPixelBufferCGBitmapContextCompatibilityKey,
-                             nil];
-    CVPixelBufferRef pxbuffer = NULL;
-
-    CVReturn status = CVPixelBufferCreate(kCFAllocatorDefault, width,
-                                          height, kCVPixelFormatType_32ARGB, (CFDictionaryRef) options,
-                                          &pxbuffer);
-    NSParameterAssert(status == kCVReturnSuccess && pxbuffer != NULL);
-
-    CVPixelBufferLockBaseAddress(pxbuffer, 0);
-    void *pxdata = CVPixelBufferGetBaseAddress(pxbuffer);
-    NSParameterAssert(pxdata != NULL);
-
-    CGColorSpaceRef rgbColorSpace = CGColorSpaceCreateDeviceRGB();
-    CGContextRef context = CGBitmapContextCreate(pxdata, width,
-                                                 height, 8, 4*width, rgbColorSpace,
-                                                 kCGImageAlphaNoneSkipFirst);
-    NSParameterAssert(context);
-    CGContextConcatCTM(context, CGAffineTransformMakeRotation(0));
-    CGContextDrawImage(context, CGRectMake(0, 0, CGImageGetWidth(image),
-                                           CGImageGetHeight(image)), image);
-    CGColorSpaceRelease(rgbColorSpace);
-    CGContextRelease(context);
-
-    CVPixelBufferUnlockBaseAddress(pxbuffer, 0);
-
-    return pxbuffer;
-}
 @end
