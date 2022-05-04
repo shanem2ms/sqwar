@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.15.0 FATAL_ERROR)
 set(CMAKE_SYSTEM_VERSION 10.0 CACHE STRING "" FORCE)
+if (MSVC)
 include(/homep4/vcpkg/scripts/buildsystems/vcpkg.cmake)
+endif()
 include (ExternalProject)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -27,15 +29,19 @@ set (BGFX_LIB ${CMAKE_INSTALL_PREFIX}/lib)
 
 message("install path ${CMAKE_INSTALL_PREFIX}")
 
+if (MSVC)
 find_package(bgfx CONFIG REQUIRED )
+endif()
 
 set(MainBinaryDir ${CMAKE_BINARY_DIR})
 set(BUNDLE_ID "com.mapbg.shane")
 
 add_subdirectory(mdns)
 add_subdirectory(core)
+if (MSVC)
 add_dependencies(core bgfx::bgfx)
 add_dependencies(shaders bgfx::bgfx)
+endif()
 
 if (APPLE)
 add_subdirectory(ios)

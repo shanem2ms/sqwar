@@ -33,7 +33,6 @@ set(Source_Files
     "entry.cpp"
     "cmd.cpp"
     "input.cpp"
-    "bounds.cpp"
     "bgfx_utils.cpp"    
     )
 
@@ -66,6 +65,7 @@ find_library(MODELIOLIB ModelIO)
 find_library(OPENGL OpenGLES)
 find_library(AVFOUNDATION AVFoundation)
 find_library(ARKITLIB ARKit)
+find_library(COREGRAPHICSLIB CoreGraphics)
 
 
 set (PLATFORMLIBS 
@@ -78,6 +78,7 @@ set (PLATFORMLIBS
 "${QUARTZCORELIB};"
 "${METALKITLIB};"
 "${ARKITLIB};"
+"${COREGRAPHICSLIB}"
 "${UIKITLIB};"
 "${MODELIOLIB};"
 "${OPENGL};"

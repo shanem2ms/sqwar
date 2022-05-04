@@ -51,9 +51,8 @@ set(Source_Files
     "SceneItem.cpp"
     "DepthPts.cpp"
     "DepthPlanes.cpp"
-    "PlanesVis.cpp"
-    "FFmpeg.cpp"
     "FaceVis.cpp"
+    "PlanesVis.cpp"
     "World.cpp"
     "Mesh.cpp"
     "Network.cpp"
@@ -65,7 +64,10 @@ set(Source_Files
     "imgui/dear-imgui/imgui_tables.cpp"
     )
 
-source_group("Source Files" FILES ${Source_Files} ${Main_Files})
+if (MSVC)
+set (WinOnly "FFmpeg.cpp")
+endif()
+source_group("Source Files" FILES ${Source_Files} ${Main_Files} ${WinOnly})
 
 set(ALL_FILES
     

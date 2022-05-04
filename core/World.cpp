@@ -310,7 +310,7 @@ namespace sam
                 GetDepthPointsWithColor(depth.depthData, depth.vidData.data(), depth.props.vidWidth, depth.props.vidHeight, depth.pts, depth.props.depthWidth >> lod, depth.props.depthHeight >> lod, 10000.0f);
 
 
-            if (m_wsHeadCenter[2] != 0)
+            if (false && m_wsHeadCenter[2] != 0)
             {
                 for (Vec4f& pt : depth.pts)
                 {
