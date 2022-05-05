@@ -75,6 +75,7 @@ set(ALL_FILES
     ${Source_Files}
     ${Coroutine_Files}
     ${Main_Files}
+    ${WinOnly}
 )
 
 add_library(core STATIC ${ALL_FILES})
