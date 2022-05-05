@@ -311,6 +311,7 @@ static    void* m_device = NULL;
     NSDictionary *videoSettings;
     AVAssetWriterInput* writerInput;
     AVAssetWriterInputPixelBufferAdaptor *adaptor;
+    int movTickCount;
 }
 @end
 
@@ -472,16 +473,54 @@ struct YCrCbData
     mtxarray[9] = size.width;
     mtxarray[10] = size.height;
     
-    CVPixelBufferRef imgBuffer = [frame capturedImage];
+    CVPixelBufferRef pixelBuffer = [frame capturedImage];
 
-    [adaptor appendPixelBuffer:imgBuffer withPresentationTime:kCMTimeZero];
+    if (videoWriter == nil)
+    {
+        CGSize sz;
+        sz.width =  CVPixelBufferGetWidth(pixelBuffer);;
+        sz.height = CVPixelBufferGetHeight(pixelBuffer);;
+        
+        NSString *documentsDirectory = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) objectAtIndex:0];
+        NSString *fullpath = [documentsDirectory stringByAppendingString:@"/test.mov"];
+        [self writeImageAsMovie:fullpath size:sz];
+    }
+    if (movTickCount < 100)
+    {
+        // Get pixel buffer info
+        const int kBytesPerPixel = 4;
+        CVPixelBufferLockBaseAddress(pixelBuffer, 0);
+        int bufferWidth = (int)CVPixelBufferGetWidth(pixelBuffer);
+        int bufferHeight = (int)CVPixelBufferGetHeight(pixelBuffer);
+        size_t bytesPerRow = CVPixelBufferGetBytesPerRow(pixelBuffer);
+        uint8_t *baseAddress = (uint8_t *)CVPixelBufferGetBaseAddress(pixelBuffer);
+
+        CVPixelBufferRef pixelBufferCopy = NULL;       // Copy the pixel buffer
+        CVPixelBufferPoolCreatePixelBuffer(kCFAllocatorDefault, [adaptor pixelBufferPool], &pixelBufferCopy);
+ 
+        //CVReturn status = CVPixelBufferCreate(kCFAllocatorDefault, bufferWidth, bufferHeight, kCVPixelFormatType_420YpCbCr8BiPlanarFullRange, NULL, &pixelBufferCopy);
+        CVPixelBufferLockBaseAddress(pixelBufferCopy, 0);
+        uint8_t *copyBaseAddress = (uint8_t *)CVPixelBufferGetBaseAddress(pixelBufferCopy);
+        memcpy(copyBaseAddress, baseAddress, bufferHeight * bytesPerRow);
+        CVPixelBufferUnlockBaseAddress(pixelBufferCopy, 0);
+        CMTime t = CMTimeMake(movTickCount, 30);
+        
+        BOOL success = [adaptor appendPixelBuffer:pixelBufferCopy withPresentationTime:t];
+        CVPixelBufferRelease(pixelBufferCopy);
+    } else if (movTickCount == 100)
+    {
+        //Finish the session:
+        [writerInput markAsFinished];
+    }
+    else
+    {
     CVPixelBufferRef depthBuffer = pDepthData.depthDataMap;
-    if (CVPixelBufferGetPixelFormatType(imgBuffer) == kCVPixelFormatType_420YpCbCr8BiPlanarFullRange &&
+    if (CVPixelBufferGetPixelFormatType(pixelBuffer) == kCVPixelFormatType_420YpCbCr8BiPlanarFullRange &&
         CVPixelBufferGetPixelFormatType(depthBuffer) == kCVPixelFormatType_DepthFloat32)
     {
-        CVPixelBufferLockBaseAddress(imgBuffer, kCVPixelBufferLock_ReadOnly);
-        size_t datasize = CVPixelBufferGetDataSize(imgBuffer);
-        void *pVidBuffer = CVPixelBufferGetBaseAddress(imgBuffer);
+        CVPixelBufferLockBaseAddress(pixelBuffer, kCVPixelBufferLock_ReadOnly);
+        size_t datasize = CVPixelBufferGetDataSize(pixelBuffer);
+        void *pVidBuffer = CVPixelBufferGetBaseAddress(pixelBuffer);
         CVPlanarPixelBufferInfo_YCbCrBiPlanar *bufferInfo = (CVPlanarPixelBufferInfo_YCbCrBiPlanar *)pVidBuffer;
         YCrCbData cbd;
         // Get the offsets and bytes per row.
@@ -494,7 +533,7 @@ struct YCrCbData
         ddata.vidData.resize(datasize - cbd.yOffset + sizeof(YCrCbData));
         memcpy(ddata.vidData.data(), &cbd, + sizeof(YCrCbData));
         memcpy(ddata.vidData.data() + + sizeof(YCrCbData), ((char *)pVidBuffer) + cbd.yOffset, ddata.vidData.size());
-        CVPixelBufferUnlockBaseAddress(imgBuffer, kCVPixelBufferLock_ReadOnly);
+        CVPixelBufferUnlockBaseAddress(pixelBuffer, kCVPixelBufferLock_ReadOnly);
     
         
         datasize = CVPixelBufferGetDataSize(depthBuffer);
@@ -509,11 +548,13 @@ struct YCrCbData
         ddata.props.timestamp = frame.timestamp;
         ddata.props.depthWidth = CVPixelBufferGetWidth(depthBuffer);
         ddata.props.depthHeight = CVPixelBufferGetHeight(depthBuffer);
-        ddata.props.vidWidth = CVPixelBufferGetWidth(imgBuffer);
-        ddata.props.vidHeight = CVPixelBufferGetHeight(imgBuffer);
+        ddata.props.vidWidth = CVPixelBufferGetWidth(pixelBuffer);
+        ddata.props.vidHeight = CVPixelBufferGetHeight(pixelBuffer);
         ddata.props.depthMode = ddata.props.vidMode = 0;
         entry::s_ctx->m_pApplication->OnDepthBuffer(ddata);
     }
+    }
+     movTickCount++;
 }
 
 void GetMat(const simd_float4x4 &m, float f[16] )
@@ -561,10 +602,11 @@ didUpdateAnchors:(NSArray<__kindof ARAnchor *> *)anchors
     }
 }
 
--(void)writeImageAsMovie:(NSString*)path size:(CGSize)size duration:(int)duration
+-(void)writeImageAsMovie:(NSString*)path size:(CGSize)size
 {
     NSError *error = nil;
-
+    BOOL success = [[NSFileManager defaultManager]  removeItemAtPath: path error:&error];
+   
     videoWriter = [[AVAssetWriter alloc] initWithURL:
                                   [NSURL fileURLWithPath:path] fileType:AVFileTypeQuickTimeMovie
                                                               error:&error];
@@ -572,7 +614,7 @@ didUpdateAnchors:(NSArray<__kindof ARAnchor *> *)anchors
     NSParameterAssert(videoWriter);
 
     videoSettings = [NSDictionary dictionaryWithObjectsAndKeys:
-                                   AVVideoCodecH264, AVVideoCodecKey,
+                     AVVideoCodecTypeH264, AVVideoCodecKey,
                                    [NSNumber numberWithInt:size.width], AVVideoWidthKey,
                                    [NSNumber numberWithInt:size.height], AVVideoHeightKey,
                                    nil];
@@ -583,22 +625,16 @@ didUpdateAnchors:(NSArray<__kindof ARAnchor *> *)anchors
 
     adaptor = [AVAssetWriterInputPixelBufferAdaptor
                                                      assetWriterInputPixelBufferAdaptorWithAssetWriterInput:writerInput
-                                                     sourcePixelBufferAttributes:nil];
+                                                     sourcePixelBufferAttributes:videoSettings];
 
     NSParameterAssert(writerInput);
     NSParameterAssert([videoWriter canAddInput:writerInput]);
     [videoWriter addInput:writerInput];
 
     //Start a session:
-    [videoWriter startWriting];
+    success = [videoWriter startWriting];
     [videoWriter startSessionAtSourceTime:kCMTimeZero];
 
-    CVPixelBufferRef buffer = NULL;
-
-
-
-    //Finish the session:
-    [writerInput markAsFinished];
 }
 
 @end
