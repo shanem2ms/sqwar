@@ -57,6 +57,7 @@ set(Source_Files
     "Mesh.cpp"
     "Network.cpp"
     "PtsVis.cpp"
+    "FFmpeg.cpp"
     "imgui/imgui.cpp"
     "imgui/dear-imgui/imgui.cpp"
     "imgui/dear-imgui/imgui_draw.cpp"
@@ -64,10 +65,7 @@ set(Source_Files
     "imgui/dear-imgui/imgui_tables.cpp"
     )
 
-if (MSVC)
-set (WinOnly "FFmpeg.cpp")
-endif()
-source_group("Source Files" FILES ${Source_Files} ${Main_Files} ${WinOnly})
+source_group("Source Files" FILES ${Source_Files} ${Main_Files})
 
 set(ALL_FILES
     
@@ -93,6 +91,7 @@ target_include_directories(core PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/."
     "${CMAKE_CURRENT_SOURCE_DIR}/imgui/."
     "${CMAKE_SOURCE_DIR}/mdns/."
+    "${CMAKE_SOURCE_DIR}/../install/include/."
     "${VCPKG_INSTALL_PATH}/include"
     "./asio/include"
     ${BGFX_INCLUDE_ROOT}

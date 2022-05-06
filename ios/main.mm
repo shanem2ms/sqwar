@@ -307,11 +307,6 @@ static    void* m_device = NULL;
 
 @interface ARDelegate : NSObject<ARSessionDelegate>
 {
-    AVAssetWriter *videoWriter;
-    NSDictionary *videoSettings;
-    AVAssetWriterInput* writerInput;
-    AVAssetWriterInputPixelBufferAdaptor *adaptor;
-    int movTickCount;
 }
 @end
 
@@ -474,68 +469,6 @@ struct YCrCbData
     mtxarray[10] = size.height;
     
     CVPixelBufferRef pixelBuffer = [frame capturedImage];
-    
-    if (videoWriter == nil)
-    {
-        CGSize sz;
-        sz.width =  CVPixelBufferGetWidth(pixelBuffer);;
-        sz.height = CVPixelBufferGetHeight(pixelBuffer);;
-        
-        NSString *documentsDirectory = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) objectAtIndex:0];
-        NSString *fullpath = [documentsDirectory stringByAppendingString:@"/test.mov"];
-        CMTime t = CMTimeMakeWithSeconds(frame.timestamp, NSEC_PER_SEC);
-        [self writeImageAsMovie:fullpath size:sz time:t];
-    }
-    if (movTickCount < 100)
-    {
-        // Get pixel buffer info
-        const int kBytesPerPixel = 4;
-        CVPixelBufferLockBaseAddress(pixelBuffer, 0);
-        int bufferWidth = (int)CVPixelBufferGetWidth(pixelBuffer);
-        int bufferHeight = (int)CVPixelBufferGetHeight(pixelBuffer);
-        size_t bytesPerRow = CVPixelBufferGetBytesPerRow(pixelBuffer);
-        uint8_t *baseAddress = (uint8_t *)CVPixelBufferGetBaseAddress(pixelBuffer);
-
-        CVPixelBufferRef pixelBufferCopy = NULL;       // Copy the pixel buffer
-        //CVPixelBufferPoolCreatePixelBuffer(kCFAllocatorDefault, [adaptor pixelBufferPool], &pixelBufferCopy);
-        CVReturn status = CVPixelBufferCreate(kCFAllocatorDefault, bufferWidth, bufferHeight, kCVPixelFormatType_420YpCbCr8BiPlanarFullRange, NULL, &pixelBufferCopy);
-        
-        CVPixelBufferLockBaseAddress(pixelBufferCopy, 0);
-        uint8_t *copyBaseAddress = (uint8_t *)CVPixelBufferGetBaseAddress(pixelBufferCopy);
-        memcpy(copyBaseAddress, baseAddress, bufferHeight * bytesPerRow);
-        CVPixelBufferUnlockBaseAddress(pixelBufferCopy, 0);
-        
-        CMTime ttime = CMTimeMakeWithSeconds(frame.timestamp, NSEC_PER_SEC);
-        CMSampleTimingInfo ti;
-        ti.decodeTimeStamp = ttime;
-        ti.presentationTimeStamp = ttime;
-        ti.duration = CMTimeMake(1, 30);
-       
-        CMVideoFormatDescriptionRef cvref = nil;
-        CMSampleBufferRef sbRef = nil;
-        CMVideoFormatDescriptionCreateForImageBuffer(kCFAllocatorDefault, pixelBufferCopy, &cvref);
-        CMSampleBufferCreateReadyWithImageBuffer(kCFAllocatorDefault, pixelBufferCopy, cvref, &ti,
-                                                 &sbRef);
-                                                 
-                                                 
-        CMTime t = CMTimeMake(movTickCount, 30);
-        if (writerInput.readyForMoreMediaData)
-        {
-        BOOL success = [writerInput appendSampleBuffer: sbRef];
-            if (!success)
-            {
-                NSError *err = videoWriter.error;
-            }
-        }
-        //OOL success = [adaptor appendPixelBuffer:pixelBufferCopy withPresentationTime:t];
-        //CVPixelBufferRelease(pixelBufferCopy);
-    } else if (movTickCount == 100)
-    {
-        //Finish the session:
-        [writerInput markAsFinished];
-    }
-    else
-    {
     CVPixelBufferRef depthBuffer = pDepthData.depthDataMap;
     if (CVPixelBufferGetPixelFormatType(pixelBuffer) == kCVPixelFormatType_420YpCbCr8BiPlanarFullRange &&
         CVPixelBufferGetPixelFormatType(depthBuffer) == kCVPixelFormatType_DepthFloat32)
@@ -575,8 +508,6 @@ struct YCrCbData
         ddata.props.depthMode = ddata.props.vidMode = 0;
         entry::s_ctx->m_pApplication->OnDepthBuffer(ddata);
     }
-    }
-     movTickCount++;
 }
 
 void GetMat(const simd_float4x4 &m, float f[16] )
@@ -623,40 +554,4 @@ didUpdateAnchors:(NSArray<__kindof ARAnchor *> *)anchors
         }
     }
 }
-
--(void)writeImageAsMovie:(NSString*)path size:(CGSize)size time:(CMTime) time
-{
-    NSError *error = nil;
-    BOOL success = [[NSFileManager defaultManager]  removeItemAtPath: path error:&error];
-   
-    videoWriter = [[AVAssetWriter alloc] initWithURL:
-                                  [NSURL fileURLWithPath:path] fileType:AVFileTypeQuickTimeMovie
-                                                              error:&error];
-
-    NSParameterAssert(videoWriter);
-
-    videoSettings = [NSDictionary dictionaryWithObjectsAndKeys:
-                     AVVideoCodecTypeH264, AVVideoCodecKey,
-                                   [NSNumber numberWithInt:size.width], AVVideoWidthKey,
-                                   [NSNumber numberWithInt:size.height], AVVideoHeightKey,
-                                   nil];
-    writerInput = [AVAssetWriterInput
-                                       assetWriterInputWithMediaType:AVMediaTypeVideo
-                                       outputSettings:videoSettings];
-
-
-    //adaptor = [AVAssetWriterInputPixelBufferAdaptor
-    //                                                 assetWriterInputPixelBufferAdaptorWithAssetWriterInput:writerInput
-    //                                                 sourcePixelBufferAttributes:videoSettings];
-
-    NSParameterAssert(writerInput);
-    NSParameterAssert([videoWriter canAddInput:writerInput]);
-    [videoWriter addInput:writerInput];
-
-    //Start a session:
-    success = [videoWriter startWriting];
-    [videoWriter startSessionAtSourceTime:time];
-
-}
-
 @end
