@@ -226,7 +226,8 @@ namespace sam
     }
 
     void Application::WriteDepthDataToFFmpeg(DepthData& frame)
-    {   
+    {
+        m_filemtx.lock();
         if (m_depthWriter == nullptr)
         {
             m_depthWriter = std::make_shared<FFmpegFileWriter>(m_documentsPath + "/depth.mp4", frame.props.depthWidth,
@@ -241,30 +242,26 @@ namespace sam
         std::vector<uint8_t> depthVData((frame.props.depthWidth * frame.props.depthHeight) / 4);
         sam::ConvertDepthToYUV(frame.depthData.data() + 16, frame.props.depthWidth,
         frame.props.depthHeight, 10.0f, depthYData.data(), depthUData.data(), depthVData.data());
-        /*
-        std::vector<float> outDepth(frame.depthData.size());
-        sam::ConvertYUVToDepth(depthYData.data(), depthUData.data(), depthVData.data(), frame.props.depthWidth,
-            frame.props.depthHeight, 10.0f, outDepth.data() + 16);
-        memcpy(outDepth.data(), frame.depthData.data(), 16 * sizeof(float));
-        float avgerr, maxerr;
-        sam::CalcDepthError(frame.depthData, outDepth, avgerr, maxerr);
-        avgavg += avgerr;
-        avgmax += maxerr;
-        std::swap(frame.depthData, outDepth);
-        */
+     
         m_depthWriter->WriteFrameYUV420(depthYData.data(), depthUData.data(), depthVData.data());
         m_vidWriter->WriteFrameYCbCr(frame.vidData.data());
+        m_filemtx.unlock();
     }
 
     void Application::FinishFFmpeg()
     {
+        m_filemtx.lock();
         if (m_depthWriter != nullptr)
         {
             m_depthWriter->FinishWrite();
-            m_vidWriter->FinishWrite();
             m_depthWriter = nullptr;
+        }
+        if (m_vidWriter != nullptr)
+        {
+            m_vidWriter->FinishWrite();
             m_vidWriter = nullptr;
         }
+        m_filemtx.unlock();
     }
 
 //#define DOWRITEDATA 1
@@ -287,8 +284,8 @@ namespace sam
 
     void Application::OnFaceData(const FaceDataProps &props, const std::vector<float> &vertices, const std::vector<int16_t> indices)
     {
-        if (s_pInst->m_isrecording)
-            s_pInst->WriteFaceDataToFile(props, vertices, indices);
+        //if (s_pInst->m_isrecording)
+        //    s_pInst->WriteFaceDataToFile(props, vertices, indices);
         s_pInst->m_world->OnFaceData(props, vertices, indices);
     }
     Application::~Application()

@@ -83,7 +83,7 @@ namespace sam
         stream->codecpar->bit_rate = bitrate * 1000;
         stream->avg_frame_rate = AVRational{ fps, 1 };
         avcodec_parameters_to_context(cctx, stream->codecpar);
-        cctx->time_base = AVRational{ 1, 1 };
+        cctx->time_base = AVRational{ 1, fps };
         cctx->max_b_frames = 2;
         cctx->gop_size = 12;
         cctx->framerate = AVRational{ fps, 1 };
@@ -260,7 +260,6 @@ namespace sam
             avcodec_send_frame(cctx, NULL);
             if (avcodec_receive_packet(cctx, &pkt) == 0) {
                 av_interleaved_write_frame(ofctx, &pkt);
-                std::cout << "final push: " << std::endl;
             }
             else {
                 break;
