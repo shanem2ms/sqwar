@@ -66,6 +66,15 @@ find_library(OPENGL OpenGLES)
 find_library(AVFOUNDATION AVFoundation)
 find_library(ARKITLIB ARKit)
 find_library(COREGRAPHICSLIB CoreGraphics)
+find_library(AUDIOTOOLBOX AudioToolbox)
+find_library(VIDEOTOOLBOX VideoToolbox)
+find_library(LIBZ libz.tbd)
+find_library(LIBBZ libbz2.tbd)
+find_library(SECURITY Security)
+find_library(ICONV iconv)
+
+message(ICONV ${ICONV})
+
 
 
 set (PLATFORMLIBS 
@@ -82,6 +91,12 @@ set (PLATFORMLIBS
 "${UIKITLIB};"
 "${MODELIOLIB};"
 "${OPENGL};"
+"${AUDIOTOOLBOX};"
+"${VIDEOTOOLBOX};"
+"${LIBZ};"
+"${LIBBZ};"
+"${SECURITY};"
+"${ICONV};"
 )
 
 message ("CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}")

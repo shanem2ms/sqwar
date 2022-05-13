@@ -195,15 +195,8 @@ namespace sam
         int ret = 0;
         if ((ret = avcodec_receive_packet(cctx, &pkt)) == 0) {
             static int counter = 0;
-            std::cout << "pkt key: " << (pkt.flags & AV_PKT_FLAG_KEY) << " " << pkt.size << " " << (counter++) << std::endl;
-            uint8_t* size = ((uint8_t*)pkt.data);
-            std::cout << "first: " << (int)size[0] << " " << (int)size[1] << " " << (int)size[2] << " " << (int)size[3]
-                << " " << (int)size[4] << " " << (int)size[5] << " " << (int)size[6] << " " << (int)size[7]
-                << std::endl;
-
             av_interleaved_write_frame(ofctx, &pkt);
         }
-        std::cout << "push: " << ret << std::endl;
         av_packet_unref(&pkt);
 
         delete[]udata;
@@ -249,15 +242,9 @@ namespace sam
         int ret = 0;
         if ((ret = avcodec_receive_packet(cctx, &pkt)) == 0) {
             static int counter = 0;
-            std::cout << "pkt key: " << (pkt.flags & AV_PKT_FLAG_KEY) << " " << pkt.size << " " << (counter++) << std::endl;
             uint8_t* size = ((uint8_t*)pkt.data);
-            std::cout << "first: " << (int)size[0] << " " << (int)size[1] << " " << (int)size[2] << " " << (int)size[3]
-                << " " << (int)size[4] << " " << (int)size[5] << " " << (int)size[6] << " " << (int)size[7]
-                << std::endl;
-
             av_interleaved_write_frame(ofctx, &pkt);
         }
-        std::cout << "push: " << ret << std::endl;
         av_packet_unref(&pkt);
     }
 

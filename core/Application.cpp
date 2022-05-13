@@ -229,9 +229,9 @@ namespace sam
     {   
         if (m_depthWriter == nullptr)
         {
-            m_depthWriter = std::make_shared<FFmpegFileWriter>("depth.mp4", frame.props.depthWidth,
+            m_depthWriter = std::make_shared<FFmpegFileWriter>(m_documentsPath + "/depth.mp4", frame.props.depthWidth,
                 frame.props.depthHeight);
-            m_vidWriter = std::make_shared<FFmpegFileWriter>("vid.mp4", frame.props.vidWidth,
+            m_vidWriter = std::make_shared<FFmpegFileWriter>(m_documentsPath + "/vid.mp4", frame.props.vidWidth,
                 frame.props.vidHeight);
         }
         float avgavg = 0;
