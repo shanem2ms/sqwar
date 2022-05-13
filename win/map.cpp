@@ -395,6 +395,7 @@ void Tick()
     {
         ReadAllBlocks();
         sCurtime = sStartTime;
+#ifdef WRITEFFMPEGVIDS
         FFmpegFileWriter depthWriter("depth.mp4", depthFrames[0].props.depthWidth,
             depthFrames[0].props.depthHeight);
         FFmpegFileWriter vidWriter("vid.mp4", depthFrames[0].props.vidWidth,
@@ -427,6 +428,7 @@ void Tick()
         avgmax /= depthFrames.size();
         depthWriter.FinishWrite();
         vidWriter.FinishWrite();
+#endif
     }
 
     size_t prevDepth = curDepthIdx;

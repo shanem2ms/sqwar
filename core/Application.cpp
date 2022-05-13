@@ -12,9 +12,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "FFmpeg.h"
+
 
 namespace sam
 {
+    void ConvertDepthToYUV(float* data, int width, int height, float maxDepth, uint8_t* ydata, uint8_t* udata, uint8_t* vdata);
+    void ConvertYUVToDepth(uint8_t* ydata, uint8_t* udata, uint8_t* vdata, int width, int height, float maxDepth, float* depthData);
+
+    void CalcDepthError(const std::vector<float>& d1, const std::vector<float>& d2,
+        float& outAvgErr, float& outMaxErr);
+
     void (*Application::m_dbgFunc)(const char*) = nullptr;
     void Application::SetDebugMsgFunc(void (*dbgfunc)(const char*))
     {
@@ -216,6 +224,49 @@ namespace sam
         WriteFileData(m_documentsPath, indices);
         m_filemtx.unlock();
     }
+
+    void Application::WriteDepthDataToFFmpeg(DepthData& frame)
+    {   
+        if (m_depthWriter == nullptr)
+        {
+            m_depthWriter = std::make_shared<FFmpegFileWriter>("depth.mp4", frame.props.depthWidth,
+                frame.props.depthHeight);
+            m_vidWriter = std::make_shared<FFmpegFileWriter>("vid.mp4", frame.props.vidWidth,
+                frame.props.vidHeight);
+        }
+        float avgavg = 0;
+        float avgmax = 0;
+        std::vector<uint8_t> depthYData(frame.props.depthWidth * frame.props.depthHeight);
+        std::vector<uint8_t> depthUData((frame.props.depthWidth * frame.props.depthHeight) / 4);
+        std::vector<uint8_t> depthVData((frame.props.depthWidth * frame.props.depthHeight) / 4);
+        sam::ConvertDepthToYUV(frame.depthData.data() + 16, frame.props.depthWidth,
+        frame.props.depthHeight, 10.0f, depthYData.data(), depthUData.data(), depthVData.data());
+        /*
+        std::vector<float> outDepth(frame.depthData.size());
+        sam::ConvertYUVToDepth(depthYData.data(), depthUData.data(), depthVData.data(), frame.props.depthWidth,
+            frame.props.depthHeight, 10.0f, outDepth.data() + 16);
+        memcpy(outDepth.data(), frame.depthData.data(), 16 * sizeof(float));
+        float avgerr, maxerr;
+        sam::CalcDepthError(frame.depthData, outDepth, avgerr, maxerr);
+        avgavg += avgerr;
+        avgmax += maxerr;
+        std::swap(frame.depthData, outDepth);
+        */
+        m_depthWriter->WriteFrameYUV420(depthYData.data(), depthUData.data(), depthVData.data());
+        m_vidWriter->WriteFrameYCbCr(frame.vidData.data());
+    }
+
+    void Application::FinishFFmpeg()
+    {
+        if (m_depthWriter != nullptr)
+        {
+            m_depthWriter->FinishWrite();
+            m_vidWriter->FinishWrite();
+            m_depthWriter = nullptr;
+            m_vidWriter = nullptr;
+        }
+    }
+
 //#define DOWRITEDATA 1
     
     void Application::OnDepthBuffer(DepthData &depth)
@@ -227,7 +278,10 @@ namespace sam
 #endif
         
         if (s_pInst->m_isrecording)
-            s_pInst->WriteDepthDataToFile(depth);
+            s_pInst->WriteDepthDataToFFmpeg(depth);
+        else
+            s_pInst->FinishFFmpeg();
+
         s_pInst->m_world->OnDepthBuffer(depth);
     }
 

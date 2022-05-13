@@ -19,6 +19,7 @@ class Client;
 struct DepthData;
 struct DepthDataProps;
 struct FaceDataProps;
+class FFmpegFileWriter;
 
 class Application
 {
@@ -38,6 +39,8 @@ class Application
     static void (*m_dbgFunc)(const char*);
     bool m_isrecording;
     double m_deviceTimestamp;
+    std::shared_ptr<FFmpegFileWriter> m_depthWriter;
+    std::shared_ptr<FFmpegFileWriter> m_vidWriter;
 
 public:    
     Application();
@@ -58,6 +61,8 @@ public:
     { return m_documentsPath; }
     
     void WriteDepthDataToFile(DepthData &depthData);
+    void WriteDepthDataToFFmpeg(DepthData& depthData);
+    void FinishFFmpeg();
     void WriteFaceDataToFile(const FaceDataProps &props, const std::vector<float> &vertices,
                              const std::vector<int16_t> indices);
     static void OnDepthBuffer(DepthData& depthData);
