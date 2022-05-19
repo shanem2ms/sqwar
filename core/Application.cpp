@@ -8,6 +8,7 @@
 #include <thread>
 #include <iostream>
 #include <fstream>
+#include <atomic>
 #include <condition_variable>
 //#include
 #include <stdio.h>
@@ -271,6 +272,9 @@ namespace sam
         pThis->BackgroundThread();
     }
 
+    std::atomic<int> g_framesPushed;
+    std::atomic<int> g_framesWritten;
+
     void BackgroundFFMpegWriter::BackgroundThread()
     {
         while (!m_terminate)
@@ -284,7 +288,10 @@ namespace sam
                 if (frame.props.timestamp < 0)
                     FinishFFmpeg();
                 else
+                {
                     WriteFrameBkg(frame);
+                    g_framesWritten++;
+                }
             }
         }
     }
@@ -303,12 +310,13 @@ namespace sam
         m_hasFrames = true;
         m_hasFramesCv.notify_one();
     }
-
+    
     void BackgroundFFMpegWriter::WriteFrame(DepthData& frame)
     {
         std::lock_guard<std::mutex> guard(m_hasFramesMtx);
         m_depthDataQueue.push_back(frame);
         m_hasFrames = true;
+        g_framesPushed++;
         m_hasFramesCv.notify_one();
     }
 
