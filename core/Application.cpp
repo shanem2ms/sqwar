@@ -8,6 +8,7 @@
 #include <thread>
 #include <iostream>
 #include <fstream>
+#include <condition_variable>
 //#include
 #include <stdio.h>
 #include <stdlib.h>
@@ -34,6 +35,7 @@ namespace sam
             m_dbgFunc(str.c_str());
     }
 
+    std::shared_ptr<BackgroundFFMpegWriter> CreateBackgroundFFMpegWriter();
 #ifdef SAM_COROUTINES
     co::static_thread_pool g_threadPool(8);
 #endif
@@ -47,7 +49,8 @@ namespace sam
         m_frameIdx(0),
         m_buttonDown(false),
         m_clientInit(false),
-        m_isrecording(false)
+        m_isrecording(false),
+        m_wasrecording(false)
     {
         s_pInst = this;
         m_engine = std::make_unique<Engine>();
@@ -60,8 +63,9 @@ namespace sam
                 //    m_world->GetSquare()->SetDepthData(data.data(), data.size(),
                 ///        std::vector<float>());
             }
-            );
+        );
 #endif
+        m_bkgWriter = CreateBackgroundFFMpegWriter();
     }
 
     Application& Application::Inst()
@@ -111,7 +115,7 @@ namespace sam
     void Application::Tick(float time, double deviceTimestamp)
     {
         m_deviceTimestamp = deviceTimestamp;
-        m_engine->Tick(time);        
+        m_engine->Tick(time);
     }
 
     void Application::Initialize(const char* folder)
@@ -143,7 +147,7 @@ namespace sam
         bgfx::setViewRect(1, 0, 0, uint16_t(m_width), uint16_t(m_height));
         m_engine->Draw(ctx);
 
-         imguiBeginFrame(m_touchPos[0]
+        imguiBeginFrame(m_touchPos[0]
             , m_touchPos[1]
             , m_buttonDown
             , 0
@@ -167,7 +171,7 @@ namespace sam
             ImGuiWindowFlags_NoMove);
 
         ImGui::SetCursorPos(ImVec2(0, 0));
-        if (ImGui::Button(ICON_FA_CHEVRON_UP, ImVec2(btnSize, btnSize)))        
+        if (ImGui::Button(ICON_FA_CHEVRON_UP, ImVec2(btnSize, btnSize)))
         {
             m_world->SetMode(
                 (m_world->GetMode() + 1) & 7);
@@ -185,25 +189,25 @@ namespace sam
         m_frameIdx = bgfx::frame() + 1;
     }
 
-    void WriteFileData(const std::string &path, const char *data, size_t sz)
+    void WriteFileData(const std::string& path, const char* data, size_t sz)
     {
-           static std::fstream fs;
-           if (!fs.is_open())
-               fs = std::fstream(path + "/file.binary", std::ios::out | std::ios::binary);
-           fs.write((const char *)&sz, sizeof(size_t));
-           fs.write((const char *)data, sz);
+        static std::fstream fs;
+        if (!fs.is_open())
+            fs = std::fstream(path + "/file.binary", std::ios::out | std::ios::binary);
+        fs.write((const char*)&sz, sizeof(size_t));
+        fs.write((const char*)data, sz);
     }
-    template <typename T> void WriteFileData(const std::string &path, const T *data, size_t sz)
+    template <typename T> void WriteFileData(const std::string& path, const T* data, size_t sz)
     {
-        WriteFileData(path, (const char *)data, sz);
+        WriteFileData(path, (const char*)data, sz);
     }
-    template<typename T> void WriteFileData(const std::string &path, const std::vector<T> &data)
+    template<typename T> void WriteFileData(const std::string& path, const std::vector<T>& data)
     {
         size_t sz = data.size() * sizeof(T);
-        WriteFileData(path, (const char *)data.data(), sz);
+        WriteFileData(path, (const char*)data.data(), sz);
     }
 
-    void Application::WriteDepthDataToFile(DepthData &depthData)
+    void Application::WriteDepthDataToFile(DepthData& depthData)
     {
         m_filemtx.lock();
         size_t val = 1234;
@@ -213,8 +217,8 @@ namespace sam
         WriteFileData(m_documentsPath, depthData.depthData);
         m_filemtx.unlock();
     }
-    
-    void Application::WriteFaceDataToFile(const FaceDataProps &props, const std::vector<float> &vertices, const std::vector<int16_t> indices)
+
+    void Application::WriteFaceDataToFile(const FaceDataProps& props, const std::vector<float>& vertices, const std::vector<int16_t> indices)
     {
         m_filemtx.lock();
         size_t val = 5678;
@@ -224,15 +228,97 @@ namespace sam
         WriteFileData(m_documentsPath, indices);
         m_filemtx.unlock();
     }
-
-    void Application::WriteDepthDataToFFmpeg(DepthData& frame)
+    class BackgroundFFMpegWriter
     {
-        m_filemtx.lock();
+        std::shared_ptr<FFmpegFileWriter> m_depthWriter;
+        std::shared_ptr<FFmpegFileWriter> m_vidWriter;
+        std::vector<DepthData> m_depthDataQueue;
+        std::string m_outputPath;
+        std::mutex m_datamutex;
+        std::thread m_backThread;
+        bool m_terminate;
+        std::condition_variable m_hasFramesCv;
+        std::mutex m_hasFramesMtx;
+        bool m_hasFrames;
+        void WriteFrameBkg(DepthData& frame);
+        static void BackgroundThreadF(BackgroundFFMpegWriter *pThis);
+        void BackgroundThread();
+    public:
+        BackgroundFFMpegWriter();
+        ~BackgroundFFMpegWriter();
+        void StartRecording(const std::string& outputPath);
+        void StopRecording();
+        void WriteFrame(DepthData& frame);
+        void FinishFFmpeg();
+    };
+
+
+    BackgroundFFMpegWriter::BackgroundFFMpegWriter() :
+        m_terminate(false)
+    {
+        std::thread t1(BackgroundThreadF, this);
+        m_backThread.swap(t1);
+    }
+
+    BackgroundFFMpegWriter::~BackgroundFFMpegWriter()
+    {
+        m_terminate = true;
+        m_backThread.join();
+    }
+
+    void BackgroundFFMpegWriter::BackgroundThreadF(BackgroundFFMpegWriter* pThis)
+    {
+        pThis->BackgroundThread();
+    }
+
+    void BackgroundFFMpegWriter::BackgroundThread()
+    {
+        while (!m_terminate)
+        {
+            std::unique_lock<std::mutex> mlock(m_hasFramesMtx);
+            m_hasFramesCv.wait(mlock, std::bind(&BackgroundFFMpegWriter::m_hasFrames, this));
+            std::vector<DepthData> depthFrames;
+            std::swap(depthFrames, m_depthDataQueue);
+            for (DepthData& frame : depthFrames)
+            {
+                if (frame.props.timestamp < 0)
+                    FinishFFmpeg();
+                else
+                    WriteFrameBkg(frame);
+            }
+        }
+    }
+
+    void BackgroundFFMpegWriter::StartRecording(const std::string& outputPath)
+    {
+        m_outputPath = outputPath;
+    }
+
+    void BackgroundFFMpegWriter::StopRecording()
+    {
+        std::lock_guard<std::mutex> guard(m_hasFramesMtx);
+        DepthData stopFrame;
+        stopFrame.props.timestamp = -1;
+        m_depthDataQueue.push_back(stopFrame);
+        m_hasFrames = true;
+        m_hasFramesCv.notify_one();
+    }
+
+    void BackgroundFFMpegWriter::WriteFrame(DepthData& frame)
+    {
+        std::lock_guard<std::mutex> guard(m_hasFramesMtx);
+        m_depthDataQueue.push_back(frame);
+        m_hasFrames = true;
+        m_hasFramesCv.notify_one();
+    }
+
+    void BackgroundFFMpegWriter::WriteFrameBkg(DepthData& frame)
+    {
         if (m_depthWriter == nullptr)
         {
-            m_depthWriter = std::make_shared<FFmpegFileWriter>(m_documentsPath + "/depth.mp4", frame.props.depthWidth,
+            m_depthWriter = std::make_shared<FFmpegFileWriter>(m_outputPath + "/depth.mp4", frame.props.depthWidth,
                 frame.props.depthHeight);
-            m_vidWriter = std::make_shared<FFmpegFileWriter>(m_documentsPath + "/vid.mp4", frame.props.vidWidth,
+            m_vidWriter = std::make_shared<FFmpegFileWriter>(m_outputPath + "/vid.mp4", frame.props.vidWidth,
                 frame.props.vidHeight);
         }
         float avgavg = 0;
@@ -241,16 +327,14 @@ namespace sam
         std::vector<uint8_t> depthUData((frame.props.depthWidth * frame.props.depthHeight) / 4);
         std::vector<uint8_t> depthVData((frame.props.depthWidth * frame.props.depthHeight) / 4);
         sam::ConvertDepthToYUV(frame.depthData.data() + 16, frame.props.depthWidth,
-        frame.props.depthHeight, 10.0f, depthYData.data(), depthUData.data(), depthVData.data());
-     
+            frame.props.depthHeight, 10.0f, depthYData.data(), depthUData.data(), depthVData.data());
+
         m_depthWriter->WriteFrameYUV420(depthYData.data(), depthUData.data(), depthVData.data());
         m_vidWriter->WriteFrameYCbCr(frame.vidData.data());
-        m_filemtx.unlock();
     }
 
-    void Application::FinishFFmpeg()
+    void BackgroundFFMpegWriter::FinishFFmpeg()
     {
-        m_filemtx.lock();
         if (m_depthWriter != nullptr)
         {
             m_depthWriter->FinishWrite();
@@ -261,28 +345,36 @@ namespace sam
             m_vidWriter->FinishWrite();
             m_vidWriter = nullptr;
         }
-        m_filemtx.unlock();
     }
 
-//#define DOWRITEDATA 1
-    
-    void Application::OnDepthBuffer(DepthData &depth)
+    //#define DOWRITEDATA 1
+
+    void Application::OnDepthBuffer(DepthData& depth)
+    {
+        s_pInst->OnDepthBufferInst(depth);
+    }
+
+    void Application::OnDepthBufferInst(DepthData& depth)
     {
 #ifdef DOSENDDATA
         static Client c;
-        c.SendData((const unsigned char *)depthData.data(), depthData.size() *
-                           sizeof(float));
+        c.SendData((const unsigned char*)depthData.data(), depthData.size() *
+            sizeof(float));
 #endif
-        
-        if (s_pInst->m_isrecording)
-            s_pInst->WriteDepthDataToFFmpeg(depth);
-        else
-            s_pInst->FinishFFmpeg();
 
-        s_pInst->m_world->OnDepthBuffer(depth);
+        if (m_isrecording && !m_wasrecording)
+            m_bkgWriter->StartRecording(m_documentsPath);
+        else if (!m_isrecording && m_wasrecording)
+            m_bkgWriter->StopRecording();
+
+        if (m_isrecording)
+            m_bkgWriter->WriteFrame(depth);
+
+        m_world->OnDepthBuffer(depth);
+        m_wasrecording = m_isrecording;
     }
 
-    void Application::OnFaceData(const FaceDataProps &props, const std::vector<float> &vertices, const std::vector<int16_t> indices)
+    void Application::OnFaceData(const FaceDataProps& props, const std::vector<float>& vertices, const std::vector<int16_t> indices)
     {
         //if (s_pInst->m_isrecording)
         //    s_pInst->WriteFaceDataToFile(props, vertices, indices);
@@ -292,4 +384,8 @@ namespace sam
     {
     }
 
+    std::shared_ptr<BackgroundFFMpegWriter> CreateBackgroundFFMpegWriter()
+    {
+        return std::make_shared<BackgroundFFMpegWriter>();
+    }
 }

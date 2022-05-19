@@ -20,6 +20,7 @@ struct DepthData;
 struct DepthDataProps;
 struct FaceDataProps;
 class FFmpegFileWriter;
+class BackgroundFFMpegWriter;
 
 class Application
 {
@@ -38,10 +39,9 @@ class Application
     bool m_clientInit;
     static void (*m_dbgFunc)(const char*);
     bool m_isrecording;
+    bool m_wasrecording;
     double m_deviceTimestamp;
-    std::shared_ptr<FFmpegFileWriter> m_depthWriter;
-    std::shared_ptr<FFmpegFileWriter> m_vidWriter;
-
+    std::shared_ptr<BackgroundFFMpegWriter> m_bkgWriter;
 public:    
     Application();
     ~Application();
@@ -61,10 +61,10 @@ public:
     { return m_documentsPath; }
     
     void WriteDepthDataToFile(DepthData &depthData);
-    void WriteDepthDataToFFmpeg(DepthData& depthData);
-    void FinishFFmpeg();
     void WriteFaceDataToFile(const FaceDataProps &props, const std::vector<float> &vertices,
                              const std::vector<int16_t> indices);
+
+    void OnDepthBufferInst(DepthData& depthData);
     static void OnDepthBuffer(DepthData& depthData);
     static void OnFaceData(const FaceDataProps &props, const std::vector<float> &vertices,
                            const std::vector<int16_t> indices);
