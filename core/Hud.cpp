@@ -14,6 +14,9 @@ namespace sam
         m_shader = Engine::Inst().LoadShader("vs_hud.bin", "fs_hud.bin");
     }
 
+    extern std::atomic<int> g_framesPushed;
+    extern std::atomic<int> g_framesWritten;
+
 	void Hud::Draw(DrawContext& ctx)
 	{        
         Matrix44f m =
@@ -23,7 +26,7 @@ namespace sam
 
         Engine& e = Engine::Inst();
         Camera::Fly la = e.Cam().GetFly();
-        bgfx::dbgTextPrintf(0, 4, 0x0f, "Cam [%f %f %f]", la.pos[0], la.pos[1], la.pos[2]);
+        bgfx::dbgTextPrintf(0, 4, 0x0f, "Frames [%d %d]", g_framesPushed.load(), g_framesWritten.load());
         bgfx::dbgTextPrintf(0, 5, 0x0f, "    [%f %f]", la.dir[0], la.dir[1]);
 
         //bgfx::setTransform(m.getData());
