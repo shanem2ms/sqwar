@@ -186,7 +186,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 
     app.SetDebugMsgFunc(WriteDbgMessage);
     GetCurrentDirectory(MAX_PATH, my_documents);
-    app.Initialize(my_documents);
+    app.Initialize("C:\\homep4\\\sqwar\\");
     app.Resize(rect.right, rect.bottom);
     return TRUE;
 }
@@ -273,7 +273,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     return 0;
 }
 
-#define SENDFRAMES 1
+//#define SENDFRAMES 
 
 
 static std::fstream s_binfile;

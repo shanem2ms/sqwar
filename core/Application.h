@@ -20,6 +20,7 @@ struct DepthData;
 struct DepthDataProps;
 struct FaceDataProps;
 class FFmpegFileWriter;
+class FFmpegFileReader;
 class BackgroundFFMpegWriter;
 
 class Application
@@ -42,6 +43,7 @@ class Application
     bool m_wasrecording;
     double m_deviceTimestamp;
     std::shared_ptr<BackgroundFFMpegWriter> m_bkgWriter;
+    std::shared_ptr<FFmpegFileReader> m_vidReader;
 public:    
     Application();
     ~Application();
@@ -54,6 +56,7 @@ public:
     void KeyUp(int keyId);
     void Resize(int w, int h);
     void Tick(float time, double deviceTimestamp);
+    void DoPlayback();
     void Draw();
     void Initialize(const char *folder);
     static void SendMDNSQueryThread();

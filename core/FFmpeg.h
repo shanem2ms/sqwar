@@ -32,7 +32,12 @@ namespace sam
         FFmpegFileWriter(const std::string& outname, uint32_t w, uint32_t h);
         void WriteFrameYCbCr(uint8_t* data);
         void WriteFrameYUV420(uint8_t* ydata, uint8_t* udata, uint8_t* vdata);
-
         void FinishWrite();
+    };
+
+    class FFmpegFileReader
+    {
+    public:
+        FFmpegFileReader(const std::string& inname);
     };
 }

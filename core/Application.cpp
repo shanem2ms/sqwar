@@ -10,6 +10,7 @@
 #include <fstream>
 #include <atomic>
 #include <condition_variable>
+#include <filesystem>
 //#include
 #include <stdio.h>
 #include <stdlib.h>
@@ -116,6 +117,7 @@ namespace sam
     void Application::Tick(float time, double deviceTimestamp)
     {
         m_deviceTimestamp = deviceTimestamp;
+        DoPlayback();
         m_engine->Tick(time);
     }
 
@@ -129,6 +131,16 @@ namespace sam
         m_clientInit = true;
         //encode_test("shane.out", "libx264");
         //testwrite();
+    }
+
+    void Application::DoPlayback()
+    {
+        if (m_vidReader == nullptr)
+        {
+            std::filesystem::path file = std::filesystem::path(m_documentsPath);
+            file.append("vid.mp4");
+            m_vidReader = std::make_shared<FFmpegFileReader>(file.string());
+        }
     }
 
     const float Pi = 3.1415297;
