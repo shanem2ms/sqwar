@@ -293,253 +293,125 @@ namespace sam
     }
 #define INBUF_SIZE 4096
 
-    static int open_input_file(const char* filename);
-    FFmpegFileReader::FFmpegFileReader(const std::string& outname)
-    {        
+    FFmpegFileReader::FFmpegFileReader(const std::string& filename) :
+        m_filename(filename),
+        m_video_stream_index(-1),
+        m_last_pts(AV_NOPTS_VALUE),
+        m_fmt_ctx(nullptr),
+        m_dec_ctx(nullptr)
+    {
         av_register_all();
         avcodec_register_all();
-
-        open_input_file(outname.c_str());
-
+        Open();
     }
 
-
-    static AVFormatContext* fmt_ctx;
-    static AVCodecContext* dec_ctx;
-    static int video_stream_index = -1;
-    static int64_t last_pts = AV_NOPTS_VALUE;
-    void readframes();
-    static int open_input_file(const char* filename)
+    void FFmpegFileReader::Open()
     {
         AVCodec* dec;
         int ret;
 
-        if ((ret = avformat_open_input(&fmt_ctx, filename, NULL, NULL)) < 0) {
+        if ((ret = avformat_open_input(&m_fmt_ctx, m_filename.c_str(), NULL, NULL)) < 0) {
             av_log(NULL, AV_LOG_ERROR, "Cannot open input file\n");
-            return ret;
+            return;
         }
 
-        if ((ret = avformat_find_stream_info(fmt_ctx, NULL)) < 0) {
+        if ((ret = avformat_find_stream_info(m_fmt_ctx, NULL)) < 0) {
             av_log(NULL, AV_LOG_ERROR, "Cannot find stream information\n");
-            return ret;
+            return;
         }
 
         /* select the video stream */
-        ret = av_find_best_stream(fmt_ctx, AVMEDIA_TYPE_VIDEO, -1, -1, &dec, 0);
+        ret = av_find_best_stream(m_fmt_ctx, AVMEDIA_TYPE_VIDEO, -1, -1, &dec, 0);
         if (ret < 0) {
             av_log(NULL, AV_LOG_ERROR, "Cannot find a video stream in the input file\n");
-            return ret;
+            return;
         }
-        video_stream_index = ret;
+        m_video_stream_index = ret;
 
         /* create decoding context */
-        dec_ctx = avcodec_alloc_context3(dec);
-        if (!dec_ctx)
-            return AVERROR(ENOMEM);
-        avcodec_parameters_to_context(dec_ctx, fmt_ctx->streams[video_stream_index]->codecpar);
+        m_dec_ctx = avcodec_alloc_context3(dec);
+        if (!m_dec_ctx)
+            return;
+        avcodec_parameters_to_context(m_dec_ctx, m_fmt_ctx->streams[m_video_stream_index]->codecpar);
 
         /* init the video decoder */
-        if ((ret = avcodec_open2(dec_ctx, dec, NULL)) < 0) {
+        if ((ret = avcodec_open2(m_dec_ctx, dec, NULL)) < 0) {
             av_log(NULL, AV_LOG_ERROR, "Cannot open video decoder\n");
-            return ret;
+            return;
         }
-
-        readframes();
-        return 0;
     }
 
-
-    void readframes()
+    int FFmpegFileReader::GetWidth() const
     {
-        int ret;
-        AVPacket* packet;
-        AVFrame* frame;
-        AVFrame* filt_frame;
-        frame = av_frame_alloc();
-        filt_frame = av_frame_alloc();
-        packet = av_packet_alloc();
-        /* read all packets */
-        while (1) {
-            if ((ret = av_read_frame(fmt_ctx, packet)) < 0)
-                break;
+        return m_dec_ctx->width;
+    }
+    int FFmpegFileReader::GetHeight() const
+    {
+        return m_dec_ctx->height;
+    }
 
-            if (packet->stream_index == video_stream_index) {
-                ret = avcodec_send_packet(dec_ctx, packet);
-                if (ret < 0) {
-                    av_log(NULL, AV_LOG_ERROR, "Error while sending a packet to the decoder\n");
+    bool FFmpegFileReader::ReadFrameYUV420(uint8_t* ydata, uint8_t* udata, uint8_t* vdata)
+    {
+        if (m_decodedFrames.size() == 0)
+        {
+            int ret;
+            AVPacket* packet;
+            packet = av_packet_alloc();
+            AVFrame* frame = av_frame_alloc();
+            /* read all packets */
+            while (m_decodedFrames.size() == 0) {
+                if ((ret = av_read_frame(m_fmt_ctx, packet)) < 0)
                     break;
-                }
 
-                while (ret >= 0) {
-                    ret = avcodec_receive_frame(dec_ctx, frame);
-                    if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
+                if (packet->stream_index == m_video_stream_index) {
+                    ret = avcodec_send_packet(m_dec_ctx, packet);
+                    if (ret < 0) {
+                        av_log(NULL, AV_LOG_ERROR, "Error while sending a packet to the decoder\n");
                         break;
                     }
-                    else if (ret < 0) {
-                        av_log(NULL, AV_LOG_ERROR, "Error while receiving a frame from the decoder\n");
-                        return;
+
+                    while (ret >= 0) {
+                        ret = avcodec_receive_frame(m_dec_ctx, frame);
+                        if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
+                            break;
+                        }
+                        else if (ret < 0) {
+                            av_log(NULL, AV_LOG_ERROR, "Error while receiving a frame from the decoder\n");
+                            return false;
+                        }
+
+                        frame->pts = frame->best_effort_timestamp;
+                        m_decodedFrames.push_back(frame);
+                        frame = av_frame_alloc();
                     }
-
-                    frame->pts = frame->best_effort_timestamp;
-
-                    av_frame_unref(frame);
+                }
+                av_packet_unref(packet);
+            }
+        }
+        if (m_decodedFrames.size() > 0)
+        {
+            int outLineSizes[3] = { m_dec_ctx->width, m_dec_ctx->width / 2, m_dec_ctx->width / 2 };
+            int outHeights[3] = { m_dec_ctx->height, m_dec_ctx->height / 2, m_dec_ctx->height / 2 };
+            uint8_t* outDatas[3] = { ydata, udata, vdata };
+            AVFrame* frame = m_decodedFrames[0];
+            for (int idx = 0; idx < 3; ++idx)
+            {
+                int inlineSize = frame->linesize[idx];
+                int outlineSize = outLineSizes[idx];
+                uint8_t *inData = frame->data[idx];
+                uint8_t* outData = outDatas[idx];
+                for (int y = 0; y < outHeights[idx]; ++y)
+                {
+                    memcpy(outData, inData, outlineSize);
+                    inData += inlineSize;
+                    outData += outlineSize;
                 }
             }
-            av_packet_unref(packet);
+            av_frame_free(&m_decodedFrames[0]);
+            m_decodedFrames.erase(m_decodedFrames.begin());
+            return true;
         }
+        return false;
     }
 }
-#if 0
-    static void video_decode_example(const char* outfilename, const char* filename)
-    {
-        AVCodec* codec;
-        AVCodecContext* c = NULL;
-        int frame_count;
-        FILE* f;
-        AVFrame* frame;
-        uint8_t inbuf[INBUF_SIZE + AV_INPUT_BUFFER_PADDING_SIZE];
-        AVPacket avpkt;
 
-        av_init_packet(&avpkt);
-
-        /* set end of buffer to 0 (this ensures that no overreading happens for damaged mpeg streams) */
-        memset(inbuf + INBUF_SIZE, 0, AV_INPUT_BUFFER_PADDING_SIZE);
-
-        printf("Decode video file %s to %s\n", filename, outfilename);
-
-        /* find the mpeg1 video decoder */
-        codec = avcodec_find_decoder(AV_CODEC_ID_MPEG1VIDEO);
-        if (!codec) {
-            fprintf(stderr, "Codec not found\n");
-            exit(1);
-        }
-
-        c = avcodec_alloc_context3(codec);
-        if (!c) {
-            fprintf(stderr, "Could not allocate video codec context\n");
-            exit(1);
-        }
-
-        if (codec->capabilities & AV_CODEC_CAP_TRUNCATED)
-            c->flags |= AV_CODEC_FLAG_TRUNCATED; // we do not send complete frames
-
-        /* For some codecs, such as msmpeg4 and mpeg4, width and height
-           MUST be initialized there because this information is not
-           available in the bitstream. */
-
-           /* open it */
-        if (avcodec_open2(c, codec, NULL) < 0) {
-            fprintf(stderr, "Could not open codec\n");
-            exit(1);
-        }
-
-        f = fopen(filename, "rb");
-        if (!f) {
-            fprintf(stderr, "Could not open %s\n", filename);
-            exit(1);
-        }
-
-        frame = av_frame_alloc();
-        if (!frame) {
-            fprintf(stderr, "Could not allocate video frame\n");
-            exit(1);
-        }
-
-        frame_count = 0;
-        for (;;) {
-            avpkt.size = fread(inbuf, 1, INBUF_SIZE, f);
-            if (avpkt.size == 0)
-                break;
-
-            /* NOTE1: some codecs are stream based (mpegvideo, mpegaudio)
-               and this is the only method to use them because you cannot
-               know the compressed data size before analysing it.
-
-               BUT some other codecs (msmpeg4, mpeg4) are inherently frame
-               based, so you must call them with all the data for one
-               frame exactly. You must also initialize 'width' and
-               'height' before initializing them. */
-
-               /* NOTE2: some codecs allow the raw parameters (frame size,
-                  sample rate) to be changed at any frame. We handle this, so
-                  you should also take care of it */
-
-                  /* here, we use a stream based decoder (mpeg1video), so we
-                     feed decoder and see if it could decode a frame */
-            avpkt.data = inbuf;
-            while (avpkt.size > 0)
-                if (decode_write_frame(outfilename, c, frame, &frame_count, &avpkt, 0) < 0)
-                    exit(1);
-        }
-
-        /* some codecs, such as MPEG, transmit the I and P frame with a
-           latency of one frame. You must do the following to have a
-           chance to get the last frame of the video */
-        avpkt.data = NULL;
-        avpkt.size = 0;
-        decode_write_frame(outfilename, c, frame, &frame_count, &avpkt, 1);
-
-        fclose(f);
-
-        avcodec_close(c);
-        av_free(c);
-        av_frame_free(&frame);
-        printf("\n");
-    }
-
-
-
-    AVCodec* codec = avcodec_find_decoder(AV_CODEC_ID_H264);
-    AVCodecContext* c = avcodec_alloc_context3(codec);
-    if (avcodec_open2(c, codec, NULL) < 0) {
-        fprintf(stderr, "Could not open codec\n");
-        return;
-    }
-
-    FILE* f = fopen(outname.c_str(), "rb");
-    AVFrame* frame = av_frame_alloc();
-
-    uint8_t inbuf[INBUF_SIZE + AV_INPUT_BUFFER_PADDING_SIZE];
-    AVPacket avpkt;
-
-    av_init_packet(&avpkt);
-    memset(inbuf + INBUF_SIZE, 0, AV_INPUT_BUFFER_PADDING_SIZE);
-
-    int frame_count = 0;
-    for (;;) {
-        avpkt.size = fread(inbuf, 1, INBUF_SIZE, f);
-        if (avpkt.size == 0)
-            break;
-
-        /* NOTE1: some codecs are stream based (mpegvideo, mpegaudio)
-           and this is the only method to use them because you cannot
-           know the compressed data size before analysing it.
-
-           BUT some other codecs (msmpeg4, mpeg4) are inherently frame
-           based, so you must call them with all the data for one
-           frame exactly. You must also initialize 'width' and
-           'height' before initializing them. */
-
-           /* NOTE2: some codecs allow the raw parameters (frame size,
-              sample rate) to be changed at any frame. We handle this, so
-              you should also take care of it */
-
-              /* here, we use a stream based decoder (mpeg1video), so we
-                 feed decoder and see if it could decode a frame */
-        avpkt.data = inbuf;
-        while (avpkt.size > 0)
-        {
-            int len, got_frame;
-            char buf[1024];
-
-            len = avcodec_decode_video2(c, frame, &got_frame, &avpkt);
-            if (len < 0) {
-                break;
-            }
-            if (avpkt.data) {
-                avpkt.size -= len;
-                avpkt.data += len;
-            }
-        }
-    }
-#endif

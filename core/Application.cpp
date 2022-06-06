@@ -137,9 +137,34 @@ namespace sam
     {
         if (m_vidReader == nullptr)
         {
-            std::filesystem::path file = std::filesystem::path(m_documentsPath);
-            file.append("vid.mp4");
-            m_vidReader = std::make_shared<FFmpegFileReader>(file.string());
+            {
+                std::filesystem::path depthfile = std::filesystem::path(m_documentsPath);
+                depthfile.append("depth.mp4");
+                m_depthReader = std::make_shared<FFmpegFileReader>(depthfile.string());
+                int nFrames = 0;
+                int width = m_depthReader->GetWidth();
+                int height = m_depthReader->GetHeight();
+                std::vector<uint8_t> ydata(width * height), udata(width * height / 4), vdata(width * height / 4);
+                std::vector<float> depth(width * height);
+                while (m_depthReader->ReadFrameYUV420(ydata.data(), udata.data(), vdata.data()))
+                {
+                    ConvertYUVToDepth(ydata.data(), udata.data(), vdata.data(), width, height, 10.0f, depth.data());
+                    nFrames++;
+                };
+            }
+            {
+                std::filesystem::path vidfile = std::filesystem::path(m_documentsPath);
+                vidfile.append("vid.mp4");
+                m_vidReader = std::make_shared<FFmpegFileReader>(vidfile.string());
+                int nFrames = 0;
+                int width = m_vidReader->GetWidth();
+                int height = m_vidReader->GetHeight();
+                std::vector<uint8_t> ydata(width * height), udata(width * height / 4), vdata(width * height / 4);
+                while (m_vidReader->ReadFrameYUV420(ydata.data(), udata.data(), vdata.data()))
+                {
+                    nFrames++;
+                };
+            }            
         }
     }
 
