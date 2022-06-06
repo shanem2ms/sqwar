@@ -44,6 +44,7 @@ class Application
     double m_deviceTimestamp;
     std::shared_ptr<BackgroundFFMpegWriter> m_bkgWriter;
     std::shared_ptr<FFmpegFileReader> m_vidReader;
+    std::shared_ptr<FFmpegFileReader> m_depthReader;
 public:    
     Application();
     ~Application();
