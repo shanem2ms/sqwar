@@ -273,7 +273,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     return 0;
 }
 
-//#define SENDFRAMES 
+#define SENDFRAMES 
 
 
 static std::fstream s_binfile;

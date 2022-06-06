@@ -117,7 +117,7 @@ namespace sam
     void Application::Tick(float time, double deviceTimestamp)
     {
         m_deviceTimestamp = deviceTimestamp;
-        DoPlayback();
+        //DoPlayback();
         m_engine->Tick(time);
     }
 
@@ -164,7 +164,7 @@ namespace sam
                 {
                     nFrames++;
                 };
-            }            
+            }
         }
     }
 
@@ -266,11 +266,21 @@ namespace sam
         WriteFileData(m_documentsPath, indices);
         m_filemtx.unlock();
     }
+    struct FaceData
+    {
+        FaceDataProps props;
+        std::vector<float> vertices;
+        std::vector<int16_t> indices;
+    };
+
     class BackgroundFFMpegWriter
     {
         std::shared_ptr<FFmpegFileWriter> m_depthWriter;
         std::shared_ptr<FFmpegFileWriter> m_vidWriter;
         std::vector<DepthData> m_depthDataQueue;
+        std::vector<FaceData> m_faceDataQueue;
+        std::fstream m_fs;
+
         std::string m_outputPath;
         std::mutex m_datamutex;
         std::thread m_backThread;
@@ -287,8 +297,27 @@ namespace sam
         void StartRecording(const std::string& outputPath);
         void StopRecording();
         void WriteFrame(DepthData& frame);
+        void WriteFaceFrame(const FaceDataProps& props, const std::vector<float>& vertices, const std::vector<int16_t>& indices);
         void FinishFFmpeg();
+
+        void WriteFileData(const char* data, size_t sz)
+        {
+            if (!m_fs.is_open())
+                m_fs = std::fstream(m_outputPath + "/face.bin", std::ios::out | std::ios::binary);
+            m_fs.write((const char*)&sz, sizeof(size_t));
+            m_fs.write((const char*)data, sz);
+        }
+        template <typename T> void WriteFileData(const T* data, size_t sz)
+        {
+            WriteFileData((const char*)data, sz);
+        }
+        template<typename T> void WriteFileData(const std::vector<T>& data)
+        {
+            size_t sz = data.size() * sizeof(T);
+            WriteFileData((const char*)data.data(), sz);
+        }
     };
+    
 
 
     BackgroundFFMpegWriter::BackgroundFFMpegWriter() :
@@ -320,6 +349,9 @@ namespace sam
             m_hasFramesCv.wait(mlock, std::bind(&BackgroundFFMpegWriter::m_hasFrames, this));
             std::vector<DepthData> depthFrames;
             std::swap(depthFrames, m_depthDataQueue);
+            std::vector<FaceData> faceFrames;
+            std::swap(faceFrames, m_faceDataQueue);
+
             for (DepthData& frame : depthFrames)
             {
                 if (frame.props.timestamp < 0)
@@ -329,6 +361,15 @@ namespace sam
                     WriteFrameBkg(frame);
                     g_framesWritten++;
                 }
+            }
+
+            for (FaceData &fd : faceFrames)
+            {
+                size_t val = 5678;
+                WriteFileData(&val, sizeof(val));
+                WriteFileData(&fd.props, sizeof(fd.props));
+                WriteFileData(fd.vertices);
+                WriteFileData(fd.indices);
             }
         }
     }
@@ -392,6 +433,19 @@ namespace sam
         }
     }
 
+    void BackgroundFFMpegWriter::WriteFaceFrame(const FaceDataProps& props, const std::vector<float>& vertices, const std::vector<int16_t>& indices)
+    {
+        std::lock_guard<std::mutex> guard(m_hasFramesMtx);
+        m_faceDataQueue.push_back(FaceData());
+        FaceData &fd = m_faceDataQueue.back();
+        fd.props = props;
+        fd.vertices = vertices;
+        fd.indices = indices;
+        m_hasFrames = true;
+        g_framesPushed++;
+        m_hasFramesCv.notify_one();
+    }
+
     //#define DOWRITEDATA 1
 
     void Application::OnDepthBuffer(DepthData& depth)
@@ -419,11 +473,20 @@ namespace sam
         m_wasrecording = m_isrecording;
     }
 
-    void Application::OnFaceData(const FaceDataProps& props, const std::vector<float>& vertices, const std::vector<int16_t> indices)
+    void Application::OnFaceData(const FaceDataProps& props, const std::vector<float>& vertices, const std::vector<int16_t> &indices)
     {
-        //if (s_pInst->m_isrecording)
-        //    s_pInst->WriteFaceDataToFile(props, vertices, indices);
-        s_pInst->m_world->OnFaceData(props, vertices, indices);
+        s_pInst->OnFaceDataInst(props, vertices, indices);
+    }
+    void Application::OnFaceDataInst(const FaceDataProps& props, const std::vector<float>& vertices, const std::vector<int16_t>& indices)
+    {
+        if (m_isrecording && !m_wasrecording)
+            m_bkgWriter->StartRecording(m_documentsPath);
+        else if (!m_isrecording && m_wasrecording)
+            m_bkgWriter->StopRecording();
+
+        if (m_isrecording)
+            m_bkgWriter->WriteFaceFrame(props, vertices, indices);
+        m_world->OnFaceData(props, vertices, indices);
     }
     Application::~Application()
     {
