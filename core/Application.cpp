@@ -281,6 +281,8 @@ namespace sam
         std::vector<FaceData> m_faceDataQueue;
         std::fstream m_fs;
 
+        float m_depthVals[16];
+        bool m_hasHeaderDepthVals;
         std::string m_outputPath;
         std::mutex m_datamutex;
         std::thread m_backThread;
@@ -288,6 +290,7 @@ namespace sam
         std::condition_variable m_hasFramesCv;
         std::mutex m_hasFramesMtx;
         bool m_hasFrames;
+        bool m_writeFaceHeader;
         void WriteFrameBkg(DepthData& frame);
         static void BackgroundThreadF(BackgroundFFMpegWriter *pThis);
         void BackgroundThread();
@@ -321,7 +324,9 @@ namespace sam
 
 
     BackgroundFFMpegWriter::BackgroundFFMpegWriter() :
-        m_terminate(false)
+        m_terminate(false),
+        m_writeFaceHeader(false),
+        m_hasHeaderDepthVals(false)
     {
         std::thread t1(BackgroundThreadF, this);
         m_backThread.swap(t1);
@@ -354,6 +359,12 @@ namespace sam
 
             for (DepthData& frame : depthFrames)
             {
+                if (!m_hasHeaderDepthVals)
+                {
+                    memcpy(m_depthVals, frame.depthData.data(), sizeof(m_depthVals));
+                    m_hasHeaderDepthVals = true;
+                }
+
                 if (frame.props.timestamp < 0)
                     FinishFFmpeg();
                 else
@@ -363,13 +374,25 @@ namespace sam
                 }
             }
 
-            for (FaceData &fd : faceFrames)
+            if (m_hasHeaderDepthVals && !m_writeFaceHeader &&
+                faceFrames.size() > 0)
             {
-                size_t val = 5678;
+                FaceData& fd = faceFrames[0];
+                size_t val = 1234;
                 WriteFileData(&val, sizeof(val));
-                WriteFileData(&fd.props, sizeof(fd.props));
-                WriteFileData(fd.vertices);
+                WriteFileData(m_depthVals, sizeof(m_depthVals));
                 WriteFileData(fd.indices);
+                m_writeFaceHeader = true;
+            }
+            if (m_writeFaceHeader)
+            {
+                for (FaceData& fd : faceFrames)
+                {
+                    size_t val = 5678;
+                    WriteFileData(&val, sizeof(val));
+                    WriteFileData(&fd.props, sizeof(fd.props));
+                    WriteFileData(fd.vertices);
+                }
             }
         }
     }
