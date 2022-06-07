@@ -45,6 +45,7 @@ class Application
     std::shared_ptr<BackgroundFFMpegWriter> m_bkgWriter;
     std::shared_ptr<FFmpegFileReader> m_vidReader;
     std::shared_ptr<FFmpegFileReader> m_depthReader;
+    std::shared_ptr<std::fstream> m_faceReader;
 public:    
     Application();
     ~Application();

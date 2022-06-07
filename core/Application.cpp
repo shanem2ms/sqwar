@@ -117,7 +117,7 @@ namespace sam
     void Application::Tick(float time, double deviceTimestamp)
     {
         m_deviceTimestamp = deviceTimestamp;
-        //DoPlayback();
+        DoPlayback();
         m_engine->Tick(time);
     }
 
@@ -133,10 +133,45 @@ namespace sam
         //testwrite();
     }
 
+    void ReadBlock(std::fstream &fs, std::vector<uint8_t>& data)
+    {
+        size_t sz;
+        fs.read((char*)&sz, sizeof(sz));
+        data.resize(sz);
+        fs.read((char*)data.data(), sz);
+    }
+
+    template <typename T> void ReadBlock(std::fstream& fs, std::vector<T>& data)
+    {
+        size_t sz;
+        fs.read((char*)&sz, sizeof(sz));
+        data.resize(sz / sizeof(T));
+        fs.read((char*)data.data(), sz);
+    }
+
     void Application::DoPlayback()
     {
         if (m_vidReader == nullptr)
         {
+            {
+                m_faceReader = std::make_shared<std::fstream>(m_documentsPath + "/face.bin", std::ios::in | std::ios::binary);
+                size_t val;
+                std::vector<float> depthVals;
+                std::vector<size_t> data;
+                ReadBlock(*m_faceReader, data);
+                ReadBlock(*m_faceReader, depthVals);
+                std::vector<uint16_t> indices;
+                ReadBlock(*m_faceReader, indices);
+
+                while (!m_faceReader->eof())
+                {
+                    ReadBlock(*m_faceReader, data);
+                    std::vector<FaceDataProps> fdp;
+                    ReadBlock(*m_faceReader, fdp);
+                    std::vector<float> vertices;
+                    ReadBlock(*m_faceReader, vertices);
+                }
+            }
             {
                 std::filesystem::path depthfile = std::filesystem::path(m_documentsPath);
                 depthfile.append("depth.mp4");
