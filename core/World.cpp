@@ -1,6 +1,7 @@
 #include "StdIncludes.h"
 #include "World.h"
 #include "Application.h"
+#include "DepthProps.h"
 #include "Engine.h"
 #include <numeric>
 #include "Mesh.h"

@@ -54,6 +54,7 @@ set(Source_Files
     "FaceVis.cpp"
     "PlanesVis.cpp"
     "World.cpp"
+    "Player.cpp"
     "Mesh.cpp"
     "Network.cpp"
     "PtsVis.cpp"

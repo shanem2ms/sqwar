@@ -1,5 +1,6 @@
 #include "StdIncludes.h"
 #include "FaceVis.h"
+#include "DepthProps.h"
 #include "DepthPts.h"
 #include "Mesh.h"
 #include "Engine.h"

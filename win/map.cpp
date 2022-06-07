@@ -19,6 +19,7 @@
 #include <fstream>
 #include <algorithm>
 #include "Application.h"
+#include "DepthProps.h"
 #include "FFmpeg.h"
 
 #define MAX_LOADSTRING 100

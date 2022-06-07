@@ -1,5 +1,6 @@
 #include "StdIncludes.h"
 #include "Application.h"
+#include "DepthProps.h"
 #include "PlanesVis.h"
 #include "DepthPts.h"
 #include "Mesh.h"

@@ -1,5 +1,6 @@
 #include "StdIncludes.h"
 #include "PtsVis.h"
+#include "DepthProps.h"
 #include "DepthPts.h"
 #include "Mesh.h"
 #include "Application.h"

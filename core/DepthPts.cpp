@@ -1,5 +1,6 @@
 #include "StdIncludes.h"
 #include "DepthPts.h"
+#include "DepthProps.h"
 #include <gmtl/AABox.h>
 #include <gmtl/AABoxOps.h>
 #include <gmtl/Plane.h>
@@ -21,15 +22,7 @@ namespace sam
         byte G;
         byte B;
     };
-
-    struct YCrCbData
-    {
-        int yOffset;
-        int yRowBytes;
-        int cbCrOffset;
-        int cbCrRowBytes;
-    };
-
+   
     inline RGBt GetRGBVal(int ix, int iy, int width, int height, const byte* yData, const byte *uvData, int yPitch)
     {
         float m[9] = { 1, 1, 1,

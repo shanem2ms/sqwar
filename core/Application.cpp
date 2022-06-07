@@ -1,9 +1,11 @@
 #include "StdIncludes.h"
 #include "Application.h"
+#include "DepthProps.h"
 #include <bgfx/bgfx.h>
 #include "Engine.h"
 #include "World.h"
 #include "Network.h"
+#include "Player.h"
 #include "imgui.h"
 #include <thread>
 #include <iostream>
@@ -21,8 +23,6 @@
 namespace sam
 {
     void ConvertDepthToYUV(float* data, int width, int height, float maxDepth, uint8_t* ydata, uint8_t* udata, uint8_t* vdata);
-    void ConvertYUVToDepth(uint8_t* ydata, uint8_t* udata, uint8_t* vdata, int width, int height, float maxDepth, float* depthData);
-
     void CalcDepthError(const std::vector<float>& d1, const std::vector<float>& d2,
         float& outAvgErr, float& outMaxErr);
 
@@ -117,7 +117,15 @@ namespace sam
     void Application::Tick(float time, double deviceTimestamp)
     {
         m_deviceTimestamp = deviceTimestamp;
-        DoPlayback();
+        if (m_player == nullptr)
+            m_player = std::make_shared<Player>(m_documentsPath);
+
+        DepthData depthData;
+        if (m_player->GetNextFrame(depthData))
+        {
+            m_world->OnDepthBuffer(depthData);
+        }
+
         m_engine->Tick(time);
     }
 
@@ -131,76 +139,6 @@ namespace sam
         m_clientInit = true;
         //encode_test("shane.out", "libx264");
         //testwrite();
-    }
-
-    void ReadBlock(std::fstream &fs, std::vector<uint8_t>& data)
-    {
-        size_t sz;
-        fs.read((char*)&sz, sizeof(sz));
-        data.resize(sz);
-        fs.read((char*)data.data(), sz);
-    }
-
-    template <typename T> void ReadBlock(std::fstream& fs, std::vector<T>& data)
-    {
-        size_t sz;
-        fs.read((char*)&sz, sizeof(sz));
-        data.resize(sz / sizeof(T));
-        fs.read((char*)data.data(), sz);
-    }
-
-    void Application::DoPlayback()
-    {
-        if (m_vidReader == nullptr)
-        {
-            {
-                m_faceReader = std::make_shared<std::fstream>(m_documentsPath + "/face.bin", std::ios::in | std::ios::binary);
-                size_t val;
-                std::vector<float> depthVals;
-                std::vector<size_t> data;
-                ReadBlock(*m_faceReader, data);
-                ReadBlock(*m_faceReader, depthVals);
-                std::vector<uint16_t> indices;
-                ReadBlock(*m_faceReader, indices);
-
-                while (!m_faceReader->eof())
-                {
-                    ReadBlock(*m_faceReader, data);
-                    std::vector<FaceDataProps> fdp;
-                    ReadBlock(*m_faceReader, fdp);
-                    std::vector<float> vertices;
-                    ReadBlock(*m_faceReader, vertices);
-                }
-            }
-            {
-                std::filesystem::path depthfile = std::filesystem::path(m_documentsPath);
-                depthfile.append("depth.mp4");
-                m_depthReader = std::make_shared<FFmpegFileReader>(depthfile.string());
-                int nFrames = 0;
-                int width = m_depthReader->GetWidth();
-                int height = m_depthReader->GetHeight();
-                std::vector<uint8_t> ydata(width * height), udata(width * height / 4), vdata(width * height / 4);
-                std::vector<float> depth(width * height);
-                while (m_depthReader->ReadFrameYUV420(ydata.data(), udata.data(), vdata.data()))
-                {
-                    ConvertYUVToDepth(ydata.data(), udata.data(), vdata.data(), width, height, 10.0f, depth.data());
-                    nFrames++;
-                };
-            }
-            {
-                std::filesystem::path vidfile = std::filesystem::path(m_documentsPath);
-                vidfile.append("vid.mp4");
-                m_vidReader = std::make_shared<FFmpegFileReader>(vidfile.string());
-                int nFrames = 0;
-                int width = m_vidReader->GetWidth();
-                int height = m_vidReader->GetHeight();
-                std::vector<uint8_t> ydata(width * height), udata(width * height / 4), vdata(width * height / 4);
-                while (m_vidReader->ReadFrameYUV420(ydata.data(), udata.data(), vdata.data()))
-                {
-                    nFrames++;
-                };
-            }
-        }
     }
 
     const float Pi = 3.1415297;

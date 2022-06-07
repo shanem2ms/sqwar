@@ -22,6 +22,7 @@ struct FaceDataProps;
 class FFmpegFileWriter;
 class FFmpegFileReader;
 class BackgroundFFMpegWriter;
+class Player;
 
 class Application
 {
@@ -43,9 +44,7 @@ class Application
     bool m_wasrecording;
     double m_deviceTimestamp;
     std::shared_ptr<BackgroundFFMpegWriter> m_bkgWriter;
-    std::shared_ptr<FFmpegFileReader> m_vidReader;
-    std::shared_ptr<FFmpegFileReader> m_depthReader;
-    std::shared_ptr<std::fstream> m_faceReader;
+    std::shared_ptr<Player> m_player;
 public:    
     Application();
     ~Application();
@@ -79,31 +78,4 @@ public:
     static void DebugMsg(const std::string& str);
 };
 
-struct DepthDataProps
-{
-    double timestamp;
-    uint32_t vidWidth;
-    uint32_t vidHeight;
-    uint32_t vidMode;
-    uint32_t depthWidth;
-    uint32_t depthHeight;
-    uint32_t depthMode;
-};
-
-struct DepthData
-{
-    DepthDataProps props;
-    std::vector<unsigned char> vidData;
-    std::vector<float> depthData;
-    std::vector<gmtl::Vec4f> pts;
-    gmtl::Matrix44f alignMtx;
-};
-
-struct FaceDataProps
-{
-    double timestamp;
-    float viewMatf[16];
-    float wMatf[16];
-    float projMatf[16];
-};
 }
