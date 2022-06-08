@@ -25,6 +25,7 @@ namespace sam
     void ConvertDepthToYUV(float* data, int width, int height, float maxDepth, uint8_t* ydata, uint8_t* udata, uint8_t* vdata);
     void CalcDepthError(const std::vector<float>& d1, const std::vector<float>& d2,
         float& outAvgErr, float& outMaxErr);
+    void ConvertYUVToDepth(uint8_t* ydata, uint8_t* udata, uint8_t* vdata, int width, int height, float maxDepth, float* depthData);
 
     void (*Application::m_dbgFunc)(const char*) = nullptr;
     void Application::SetDebugMsgFunc(void (*dbgfunc)(const char*))
@@ -114,18 +115,22 @@ namespace sam
         m_engine->Resize(w, h);
         m_world->Layout(w, h);
     }
+
+    static bool playback = false;
     void Application::Tick(float time, double deviceTimestamp)
     {
         m_deviceTimestamp = deviceTimestamp;
-        if (m_player == nullptr)
-            m_player = std::make_shared<Player>(m_documentsPath);
-
-        DepthData depthData;
-        if (m_player->GetNextFrame(depthData))
+        if (playback)
         {
-            m_world->OnDepthBuffer(depthData);
-        }
+            if (m_player == nullptr)
+                m_player = std::make_shared<Player>(m_documentsPath);
 
+            DepthData depthData;
+            if (m_player->GetNextFrame(depthData))
+            {
+                m_world->OnDepthBuffer(depthData);
+            }
+        }
         m_engine->Tick(time);
     }
 
@@ -464,7 +469,14 @@ namespace sam
 
         if (m_isrecording)
             m_bkgWriter->WriteFrame(depth);
-
+        std::vector<uint8_t> depthYData(depth.props.depthWidth * depth.props.depthHeight);
+        std::vector<uint8_t> depthUData((depth.props.depthWidth * depth.props.depthHeight) / 4);
+        std::vector<uint8_t> depthVData((depth.props.depthWidth * depth.props.depthHeight) / 4);
+        sam::ConvertDepthToYUV(depth.depthData.data() + 16, depth.props.depthWidth,
+                               depth.props.depthHeight, 10.0f, depthYData.data(), depthUData.data(), depthVData.data());
+        sam::ConvertYUVToDepth(depthYData.data(), depthUData.data(), depthVData.data(),
+                               depth.props.depthWidth, depth.props.depthHeight, 10.0f,
+                               depth.depthData.data() + 16);
         m_world->OnDepthBuffer(depth);
         m_wasrecording = m_isrecording;
     }

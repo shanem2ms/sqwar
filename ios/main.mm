@@ -25,6 +25,7 @@
 #include <bx/thread.h>
 #include "bgfx_utils.h"
 #include "Application.h"
+#include "DepthProps.h"
 #include <vector>
 
 namespace entry
