@@ -116,7 +116,7 @@ namespace sam
         m_world->Layout(w, h);
     }
 
-    static bool playback = false;
+    static bool playback = true;
     void Application::Tick(float time, double deviceTimestamp)
     {
         m_deviceTimestamp = deviceTimestamp;
@@ -402,9 +402,9 @@ namespace sam
         if (m_depthWriter == nullptr)
         {
             m_depthWriter = std::make_shared<FFmpegFileWriter>(m_outputPath + "/depth.mp4", frame.props.depthWidth,
-                frame.props.depthHeight);
+                frame.props.depthHeight, true);
             m_vidWriter = std::make_shared<FFmpegFileWriter>(m_outputPath + "/vid.mp4", frame.props.vidWidth,
-                frame.props.vidHeight);
+                frame.props.vidHeight, false);
         }
         float avgavg = 0;
         float avgmax = 0;

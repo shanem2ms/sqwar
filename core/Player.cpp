@@ -25,13 +25,21 @@ namespace sam
     }
 
     Player::Player(const std::string& path) :
-        m_documentsPath(path)
+        m_documentsPath(path),
+        m_notfound(false)
     {
 
     }
 
     void Player::Initialize()
     {
+        std::filesystem::path depthfile = std::filesystem::path(m_documentsPath);
+        depthfile.append("depth.mp4");
+        if (!std::filesystem::exists(depthfile))
+        {
+            m_notfound = true;
+            return;
+        }
         {
             m_faceReader = std::make_shared<std::fstream>(m_documentsPath + "/face.bin", std::ios::in | std::ios::binary);
             size_t val;
@@ -41,8 +49,6 @@ namespace sam
             ReadBlock(*m_faceReader, m_indices);
         }
         {
-            std::filesystem::path depthfile = std::filesystem::path(m_documentsPath);
-            depthfile.append("depth.mp4");
             m_depthReader = std::make_shared<FFmpegFileReader>(depthfile.string());
             m_depthWidth = m_depthReader->GetWidth();
             m_depthHeight = m_depthReader->GetHeight();
@@ -59,9 +65,12 @@ namespace sam
 
     bool Player::GetNextFrame(DepthData& data)
     {
+        if (m_notfound)
+            return false;
         if (m_vidReader == nullptr)
             Initialize();
-
+        if (m_vidReader == nullptr)
+            return false;
         data.props.depthHeight = m_depthHeight;
         data.props.depthWidth = m_depthWidth;
         data.props.vidHeight = m_vidHeight;

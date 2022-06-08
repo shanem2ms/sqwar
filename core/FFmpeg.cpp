@@ -26,10 +26,11 @@ namespace sam
         int cbCrRowBytes;
     };
 
-    FFmpegFileWriter::FFmpegFileWriter(const std::string& outname, uint32_t w, uint32_t h) :
+    FFmpegFileWriter::FFmpegFileWriter(const std::string& outname, uint32_t w, uint32_t h, bool isDepth) :
         m_file(outname),
         m_w(w),
-        m_h(h)
+        m_h(h),
+        m_isDepth(isDepth)
     {
         StartWrite(w, h);
     }
@@ -44,7 +45,7 @@ namespace sam
             std::cout << "can't create output format" << std::endl;
             return -1;
         }
-        //oformat->video_codec = AV_CODEC_ID_H265;
+        oformat->video_codec = AV_CODEC_ID_H265;
 
         int err = avformat_alloc_output_context2(&ofctx, oformat, nullptr, m_file.c_str());
 
@@ -89,10 +90,10 @@ namespace sam
         cctx->framerate = AVRational{ fps, 1 };
 
         if (stream->codecpar->codec_id == AV_CODEC_ID_H264) {
-            av_opt_set(cctx, "preset", "ultrafast", 0);
+            av_opt_set(cctx, "preset", "medium", 0);
         }
         else if (stream->codecpar->codec_id == AV_CODEC_ID_H265) {
-            av_opt_set(cctx, "preset", "ultrafast", 0);
+            av_opt_set(cctx, "preset", "medium", 0);
         }
         else
         {

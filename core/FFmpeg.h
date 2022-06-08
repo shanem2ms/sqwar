@@ -25,11 +25,13 @@ namespace sam
         AVStream* stream = nullptr;
         int fps = 30;
         int bitrate = 2000;
+        bool m_isDepth;
 
         int StartWrite(uint32_t width, uint32_t height);
     public:
 
-        FFmpegFileWriter(const std::string& outname, uint32_t w, uint32_t h);
+        FFmpegFileWriter(const std::string& outname, uint32_t w, uint32_t h,
+                         bool isDepth);
         void WriteFrameYCbCr(uint8_t* data);
         void WriteFrameYUV420(uint8_t* ydata, uint8_t* udata, uint8_t* vdata);
         void FinishWrite();
