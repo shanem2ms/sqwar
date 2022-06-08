@@ -1,6 +1,7 @@
 #include "StdIncludes.h"
 #include "Application.h"
 #include "DepthProps.h"
+#include "DepthPts.h"
 #include <bgfx/bgfx.h>
 #include "Engine.h"
 #include "World.h"
@@ -22,7 +23,6 @@
 
 namespace sam
 {
-    void ConvertDepthToYUV(float* data, int width, int height, float maxDepth, uint8_t* ydata, uint8_t* udata, uint8_t* vdata);
     void CalcDepthError(const std::vector<float>& d1, const std::vector<float>& d2,
         float& outAvgErr, float& outMaxErr);
     void ConvertYUVToDepth(uint8_t* ydata, uint8_t* udata, uint8_t* vdata, int width, int height, float maxDepth, float* depthData);
@@ -142,8 +142,6 @@ namespace sam
         imguiCreate();
         m_client = std::make_unique<Client>();
         m_clientInit = true;
-        //encode_test("shane.out", "libx264");
-        //testwrite();
     }
 
     const float Pi = 3.1415297;
@@ -469,6 +467,7 @@ namespace sam
 
         if (m_isrecording)
             m_bkgWriter->WriteFrame(depth);
+
         std::vector<uint8_t> depthYData(depth.props.depthWidth * depth.props.depthHeight);
         std::vector<uint8_t> depthUData((depth.props.depthWidth * depth.props.depthHeight) / 4);
         std::vector<uint8_t> depthVData((depth.props.depthWidth * depth.props.depthHeight) / 4);

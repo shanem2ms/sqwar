@@ -201,9 +201,54 @@ namespace sam
         }
     }
 
+    void DepthFillEmpty(const float* lod1, float* lod0, int depthWidth0, int depthHeight0)
+    {
+        int depthWidth1 = depthWidth0 / 2;
+        for (int y = 0; y < depthHeight0; ++y)
+        {
+            for (int x = 0; x < depthWidth0; ++x)
+            {
+                if (isnan(lod0[y * depthWidth0 + x]))
+                    lod0[y * depthWidth0 + x] = lod1[(y/2) * depthWidth1 + x/2];
+            }
+        }
+    }
 
     void ConvertDepthToYUV(float* data, int width, int height, float maxDepth, uint8_t* ydata, uint8_t* udata, uint8_t* vdata)
     {
+        int dw = width;
+        int dh = height;
+        int size = 0;
+        std::vector<int> lodOffsets;
+        std::vector<std::pair<int, int>> lodSizes;
+        lodOffsets.push_back(0);
+        while (dw >= 16)
+        {
+            dw >>= 1;
+            dh >>= 1;
+            size += dw * dh;
+            lodOffsets.push_back(size);
+            lodSizes.push_back(std::make_pair(dw, dh));
+        }
+        std::vector<float> lods(size);
+        sam::DepthBuildLods(data, lods.data(), width, height);
+        for (int lodIdx = 0; lodIdx < lodSizes.size() - 1; ++lodIdx)
+        {
+            int idx1 = lodSizes.size() - lodIdx - 1;            
+            const float* lod1 = lods.data() + 
+                lodOffsets[idx1];
+            float *lod0 = lods.data() + 
+                lodOffsets[idx1 - 1];
+            int lodwidth = lodSizes[idx1 - 1].first;
+            int lodheight = lodSizes[idx1 - 1].second;
+            DepthFillEmpty(lod1, lod0, lodwidth, lodheight);
+        }
+        {
+            const float* lod1 = lods.data() +
+                lodOffsets[0];
+            DepthFillEmpty(lod1, data, width, height);
+        }
+
         float scalar = 254.0f / maxDepth;
         float* line0 = data;
         uint8_t* yout0 = ydata;
