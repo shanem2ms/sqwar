@@ -29,6 +29,7 @@ namespace sam
         int m_vidWidth;
         int m_vidHeight;
         int m_vidFrames;
+        bool m_notfound;
     public:
         Player(const std::string &path);
         void Initialize();
