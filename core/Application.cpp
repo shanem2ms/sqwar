@@ -2,6 +2,7 @@
 #include "Application.h"
 #include "DepthProps.h"
 #include "DepthPts.h"
+#include "Record.h"
 #include <bgfx/bgfx.h>
 #include "Engine.h"
 #include "World.h"
@@ -38,7 +39,6 @@ namespace sam
             m_dbgFunc(str.c_str());
     }
 
-    std::shared_ptr<BackgroundFFMpegWriter> CreateBackgroundFFMpegWriter();
 #ifdef SAM_COROUTINES
     co::static_thread_pool g_threadPool(8);
 #endif
@@ -52,7 +52,7 @@ namespace sam
         m_frameIdx(0),
         m_buttonDown(false),
         m_clientInit(false),
-        m_isrecording(false),
+        m_isrecording(true),
         m_wasrecording(false)
     {
         s_pInst = this;
@@ -68,7 +68,7 @@ namespace sam
             }
         );
 #endif
-        m_bkgWriter = CreateBackgroundFFMpegWriter();
+        m_bkgWriter = std::make_shared<Recorder>();
     }
 
     Application& Application::Inst()
@@ -116,7 +116,7 @@ namespace sam
         m_world->Layout(w, h);
     }
 
-    static bool playback = true;
+    static bool playback = false;
     void Application::Tick(float time, double deviceTimestamp)
     {
         m_deviceTimestamp = deviceTimestamp;
@@ -242,208 +242,6 @@ namespace sam
         WriteFileData(m_documentsPath, indices);
         m_filemtx.unlock();
     }
-    struct FaceData
-    {
-        FaceDataProps props;
-        std::vector<float> vertices;
-        std::vector<int16_t> indices;
-    };
-
-    class BackgroundFFMpegWriter
-    {
-        std::shared_ptr<FFmpegFileWriter> m_depthWriter;
-        std::shared_ptr<FFmpegFileWriter> m_vidWriter;
-        std::vector<DepthData> m_depthDataQueue;
-        std::vector<FaceData> m_faceDataQueue;
-        std::fstream m_fs;
-
-        float m_depthVals[16];
-        bool m_hasHeaderDepthVals;
-        std::string m_outputPath;
-        std::mutex m_datamutex;
-        std::thread m_backThread;
-        bool m_terminate;
-        std::condition_variable m_hasFramesCv;
-        std::mutex m_hasFramesMtx;
-        bool m_hasFrames;
-        bool m_writeFaceHeader;
-        void WriteFrameBkg(DepthData& frame);
-        static void BackgroundThreadF(BackgroundFFMpegWriter *pThis);
-        void BackgroundThread();
-    public:
-        BackgroundFFMpegWriter();
-        ~BackgroundFFMpegWriter();
-        void StartRecording(const std::string& outputPath);
-        void StopRecording();
-        void WriteFrame(DepthData& frame);
-        void WriteFaceFrame(const FaceDataProps& props, const std::vector<float>& vertices, const std::vector<int16_t>& indices);
-        void FinishFFmpeg();
-
-        void WriteFileData(const char* data, size_t sz)
-        {
-            if (!m_fs.is_open())
-                m_fs = std::fstream(m_outputPath + "/face.bin", std::ios::out | std::ios::binary);
-            m_fs.write((const char*)&sz, sizeof(size_t));
-            m_fs.write((const char*)data, sz);
-        }
-        template <typename T> void WriteFileData(const T* data, size_t sz)
-        {
-            WriteFileData((const char*)data, sz);
-        }
-        template<typename T> void WriteFileData(const std::vector<T>& data)
-        {
-            size_t sz = data.size() * sizeof(T);
-            WriteFileData((const char*)data.data(), sz);
-        }
-    };
-    
-
-
-    BackgroundFFMpegWriter::BackgroundFFMpegWriter() :
-        m_terminate(false),
-        m_writeFaceHeader(false),
-        m_hasHeaderDepthVals(false)
-    {
-        std::thread t1(BackgroundThreadF, this);
-        m_backThread.swap(t1);
-    }
-
-    BackgroundFFMpegWriter::~BackgroundFFMpegWriter()
-    {
-        m_terminate = true;
-        m_backThread.join();
-    }
-
-    void BackgroundFFMpegWriter::BackgroundThreadF(BackgroundFFMpegWriter* pThis)
-    {
-        pThis->BackgroundThread();
-    }
-
-    std::atomic<int> g_framesPushed;
-    std::atomic<int> g_framesWritten;
-
-    void BackgroundFFMpegWriter::BackgroundThread()
-    {
-        while (!m_terminate)
-        {
-            std::unique_lock<std::mutex> mlock(m_hasFramesMtx);
-            m_hasFramesCv.wait(mlock, std::bind(&BackgroundFFMpegWriter::m_hasFrames, this));
-            std::vector<DepthData> depthFrames;
-            std::swap(depthFrames, m_depthDataQueue);
-            std::vector<FaceData> faceFrames;
-            std::swap(faceFrames, m_faceDataQueue);
-
-            for (DepthData& frame : depthFrames)
-            {
-                if (!m_hasHeaderDepthVals)
-                {
-                    memcpy(m_depthVals, frame.depthData.data(), sizeof(m_depthVals));
-                    m_hasHeaderDepthVals = true;
-                }
-
-                if (frame.props.timestamp < 0)
-                    FinishFFmpeg();
-                else
-                {
-                    WriteFrameBkg(frame);
-                    g_framesWritten++;
-                }
-            }
-
-            if (m_hasHeaderDepthVals && !m_writeFaceHeader &&
-                faceFrames.size() > 0)
-            {
-                FaceData& fd = faceFrames[0];
-                size_t val = 1234;
-                WriteFileData(&val, sizeof(val));
-                WriteFileData(m_depthVals, sizeof(m_depthVals));
-                WriteFileData(fd.indices);
-                m_writeFaceHeader = true;
-            }
-            if (m_writeFaceHeader)
-            {
-                for (FaceData& fd : faceFrames)
-                {
-                    size_t val = 5678;
-                    WriteFileData(&val, sizeof(val));
-                    WriteFileData(&fd.props, sizeof(fd.props));
-                    WriteFileData(fd.vertices);
-                }
-            }
-        }
-    }
-
-    void BackgroundFFMpegWriter::StartRecording(const std::string& outputPath)
-    {
-        m_outputPath = outputPath;
-    }
-
-    void BackgroundFFMpegWriter::StopRecording()
-    {
-        std::lock_guard<std::mutex> guard(m_hasFramesMtx);
-        DepthData stopFrame;
-        stopFrame.props.timestamp = -1;
-        m_depthDataQueue.push_back(stopFrame);
-        m_hasFrames = true;
-        m_hasFramesCv.notify_one();
-    }
-    
-    void BackgroundFFMpegWriter::WriteFrame(DepthData& frame)
-    {
-        std::lock_guard<std::mutex> guard(m_hasFramesMtx);
-        m_depthDataQueue.push_back(frame);
-        m_hasFrames = true;
-        g_framesPushed++;
-        m_hasFramesCv.notify_one();
-    }
-
-    void BackgroundFFMpegWriter::WriteFrameBkg(DepthData& frame)
-    {
-        if (m_depthWriter == nullptr)
-        {
-            m_depthWriter = std::make_shared<FFmpegFileWriter>(m_outputPath + "/depth.mp4", frame.props.depthWidth,
-                frame.props.depthHeight, true);
-            m_vidWriter = std::make_shared<FFmpegFileWriter>(m_outputPath + "/vid.mp4", frame.props.vidWidth,
-                frame.props.vidHeight, false);
-        }
-        float avgavg = 0;
-        float avgmax = 0;
-        std::vector<uint8_t> depthYData(frame.props.depthWidth * frame.props.depthHeight);
-        std::vector<uint8_t> depthUData((frame.props.depthWidth * frame.props.depthHeight) / 4);
-        std::vector<uint8_t> depthVData((frame.props.depthWidth * frame.props.depthHeight) / 4);
-        sam::ConvertDepthToYUV(frame.depthData.data() + 16, frame.props.depthWidth,
-            frame.props.depthHeight, 10.0f, depthYData.data(), depthUData.data(), depthVData.data());
-
-        m_depthWriter->WriteFrameYUV420(depthYData.data(), depthUData.data(), depthVData.data());
-        m_vidWriter->WriteFrameYCbCr(frame.vidData.data());
-    }
-
-    void BackgroundFFMpegWriter::FinishFFmpeg()
-    {
-        if (m_depthWriter != nullptr)
-        {
-            m_depthWriter->FinishWrite();
-            m_depthWriter = nullptr;
-        }
-        if (m_vidWriter != nullptr)
-        {
-            m_vidWriter->FinishWrite();
-            m_vidWriter = nullptr;
-        }
-    }
-
-    void BackgroundFFMpegWriter::WriteFaceFrame(const FaceDataProps& props, const std::vector<float>& vertices, const std::vector<int16_t>& indices)
-    {
-        std::lock_guard<std::mutex> guard(m_hasFramesMtx);
-        m_faceDataQueue.push_back(FaceData());
-        FaceData &fd = m_faceDataQueue.back();
-        fd.props = props;
-        fd.vertices = vertices;
-        fd.indices = indices;
-        m_hasFrames = true;
-        g_framesPushed++;
-        m_hasFramesCv.notify_one();
-    }
 
     //#define DOWRITEDATA 1
 
@@ -467,7 +265,7 @@ namespace sam
 
         if (m_isrecording)
             m_bkgWriter->WriteFrame(depth);
-
+        /*
         std::vector<uint8_t> depthYData(depth.props.depthWidth * depth.props.depthHeight);
         std::vector<uint8_t> depthUData((depth.props.depthWidth * depth.props.depthHeight) / 4);
         std::vector<uint8_t> depthVData((depth.props.depthWidth * depth.props.depthHeight) / 4);
@@ -476,6 +274,7 @@ namespace sam
         sam::ConvertYUVToDepth(depthYData.data(), depthUData.data(), depthVData.data(),
                                depth.props.depthWidth, depth.props.depthHeight, 10.0f,
                                depth.depthData.data() + 16);
+                               */
         m_world->OnDepthBuffer(depth);
         m_wasrecording = m_isrecording;
     }
@@ -499,8 +298,4 @@ namespace sam
     {
     }
 
-    std::shared_ptr<BackgroundFFMpegWriter> CreateBackgroundFFMpegWriter()
-    {
-        return std::make_shared<BackgroundFFMpegWriter>();
-    }
 }

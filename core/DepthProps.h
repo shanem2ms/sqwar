@@ -1,4 +1,6 @@
 #pragma once
+#include "gmtl/Vec.h"
+#include "gmtl/Matrix.h"
 
 namespace sam
 {

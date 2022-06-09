@@ -21,7 +21,7 @@ struct DepthDataProps;
 struct FaceDataProps;
 class FFmpegFileWriter;
 class FFmpegFileReader;
-class BackgroundFFMpegWriter;
+class Recorder;
 class Player;
 
 class Application
@@ -43,7 +43,7 @@ class Application
     bool m_isrecording;
     bool m_wasrecording;
     double m_deviceTimestamp;
-    std::shared_ptr<BackgroundFFMpegWriter> m_bkgWriter;
+    std::shared_ptr<Recorder> m_bkgWriter;
     std::shared_ptr<Player> m_player;
 public:    
     Application();
