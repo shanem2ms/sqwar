@@ -6,7 +6,6 @@
 #include <atomic>
 #include <condition_variable>
 #include <functional>
-#include "DepthProps.h"
 #include "FFmpeg.h"
 
 namespace sam
@@ -32,7 +31,11 @@ namespace sam
     Player::Player(const std::string& path, bool streaming) :
         m_streaming(streaming),
         m_documentsPath(path),
-        m_notfound(false)
+        m_notfound(false),
+        m_terminate(false),
+        m_depthFrames(0),
+        m_depthHeight(0),
+        m_depthWidth(0)
     {
         std::thread t1(BackgroundThreadF, this);
         m_backThread.swap(t1);
@@ -94,7 +97,7 @@ namespace sam
             return false;
         data = std::move(m_frames.front());
         m_frames.pop();
-        
+        return true;
     }
 
     void Player::BackgroundThreadF(Player* pThis)
@@ -113,8 +116,8 @@ namespace sam
                 DepthData data;
                 std::vector<uint8_t> ydata(m_depthWidth * m_depthHeight), udata(m_depthWidth * m_depthHeight / 4),
                     vdata(m_depthWidth * m_depthHeight / 4);
-                memcpy(data.depthData.data(), m_depthVals.data(), sizeof(float) * 16);
                 data.depthData.resize(m_depthWidth * m_depthHeight + 16);
+                memcpy(data.depthData.data(), m_depthVals.data(), sizeof(float) * 16);
                 bool hasFrames = false;
                 if (m_depthStreamer->ReadFrameYUV420(ydata.data(), udata.data(), vdata.data()))
                 {

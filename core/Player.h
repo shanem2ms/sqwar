@@ -8,6 +8,7 @@
 #include <mutex>
 #include "gmtl/Vec.h"
 #include "gmtl/Matrix.h"
+#include "DepthProps.h"
 
 namespace sam
 {
