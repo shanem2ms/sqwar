@@ -1,6 +1,11 @@
 #include "Player.h"
 #include <fstream>
 #include <filesystem>
+#include <thread>
+#include <iostream>
+#include <atomic>
+#include <condition_variable>
+#include <functional>
 #include "DepthProps.h"
 #include "FFmpeg.h"
 
@@ -24,122 +29,181 @@ namespace sam
         fs.read((char*)data.data(), sz);
     }
 
-    Player::Player(const std::string& path) :
+    Player::Player(const std::string& path, bool streaming) :
+        m_streaming(streaming),
         m_documentsPath(path),
         m_notfound(false)
     {
-
+        std::thread t1(BackgroundThreadF, this);
+        m_backThread.swap(t1);
     }
 
     void Player::Initialize()
     {
-        std::filesystem::path depthfile = std::filesystem::path(m_documentsPath);
-        depthfile.append("depth.mp4");
-        if (!std::filesystem::exists(depthfile))
+        if (m_streaming)
         {
-            m_notfound = true;
-            return;
+            m_depthStreamer = std::make_shared<FFmpegInputStreamer>("udp://127.0.0.1:23000");
+            {
+                m_faceReader = std::make_shared<std::fstream>(m_documentsPath + "/face.bin", std::ios::in | std::ios::binary);
+                size_t val;
+                std::vector<size_t> data;
+                ReadBlock(*m_faceReader, data);
+                ReadBlock(*m_faceReader, m_depthVals);
+                ReadBlock(*m_faceReader, m_indices);
+            }
+            m_depthWidth = m_depthStreamer->GetWidth();
+            m_depthHeight = m_depthStreamer->GetHeight();
         }
+        else
         {
-            m_faceReader = std::make_shared<std::fstream>(m_documentsPath + "/face.bin", std::ios::in | std::ios::binary);
-            size_t val;
-            std::vector<size_t> data;
-            ReadBlock(*m_faceReader, data);
-            ReadBlock(*m_faceReader, m_depthVals);
-            ReadBlock(*m_faceReader, m_indices);
-        }
-        {
-            m_depthReader = std::make_shared<FFmpegFileReader>(depthfile.string());
-            m_depthWidth = m_depthReader->GetWidth();
-            m_depthHeight = m_depthReader->GetHeight();
-        }
-        {
-            std::filesystem::path vidfile = std::filesystem::path(m_documentsPath);
-            vidfile.append("vid.mp4");
-            m_vidReader = std::make_shared<FFmpegFileReader>(vidfile.string());
-            int nFrames = 0;
-            m_vidWidth = m_vidReader->GetWidth();
-            m_vidHeight = m_vidReader->GetHeight();           
+            std::filesystem::path depthfile = std::filesystem::path(m_documentsPath);
+            depthfile.append("depth.mp4");
+            if (!std::filesystem::exists(depthfile))
+            {
+                m_notfound = true;
+                return;
+            }
+            {
+                m_faceReader = std::make_shared<std::fstream>(m_documentsPath + "/face.bin", std::ios::in | std::ios::binary);
+                size_t val;
+                std::vector<size_t> data;
+                ReadBlock(*m_faceReader, data);
+                ReadBlock(*m_faceReader, m_depthVals);
+                ReadBlock(*m_faceReader, m_indices);
+            }
+            {
+                m_depthReader = std::make_shared<FFmpegFileReader>(depthfile.string());
+                m_depthWidth = m_depthReader->GetWidth();
+                m_depthHeight = m_depthReader->GetHeight();
+            }
+            {
+                std::filesystem::path vidfile = std::filesystem::path(m_documentsPath);
+                vidfile.append("vid.mp4");
+                m_vidReader = std::make_shared<FFmpegFileReader>(vidfile.string());
+                int nFrames = 0;
+                m_vidWidth = m_vidReader->GetWidth();
+                m_vidHeight = m_vidReader->GetHeight();
+            }
         }
     }
 
     bool Player::GetNextFrame(DepthData& data)
     {
-        if (m_notfound)
+        std::unique_lock<std::mutex> mlock(m_hasFramesMtx);
+        if (m_frames.size() == 0)
             return false;
-        if (m_vidReader == nullptr)
-            Initialize();
-        if (m_vidReader == nullptr)
-            return false;
-        data.props.depthHeight = m_depthHeight;
-        data.props.depthWidth = m_depthWidth;
-        data.props.vidHeight = m_vidHeight;
-        data.props.vidWidth = m_vidWidth;
+        data = std::move(m_frames.front());
+        m_frames.pop();
+        
+    }
 
-        if (false && !m_faceReader->eof())
+    void Player::BackgroundThreadF(Player* pThis)
+    {
+        pThis->BackgroundThread();
+    }
+
+    void Player::BackgroundThread()
+    {
+        while (!m_terminate)
         {
-            std::vector<size_t> data;
-            ReadBlock(*m_faceReader, data);
-            std::vector<FaceDataProps> fdp;
-            ReadBlock(*m_faceReader, fdp);
-            std::vector<float> vertices;
-            ReadBlock(*m_faceReader, vertices);
-        }
-
-
-        bool hasFrames = true;
-        {
-            std::vector<uint8_t> ydata(m_depthWidth * m_depthHeight), udata(m_depthWidth * m_depthHeight / 4),
-                vdata(m_depthWidth * m_depthHeight / 4);
-            data.depthData.resize(m_depthWidth * m_depthHeight + 16);
-            memcpy(data.depthData.data(), m_depthVals.data(), sizeof(float) * 16);
-            if (m_depthReader->ReadFrameYUV420(ydata.data(), udata.data(), vdata.data()))
+            if (m_streaming)
             {
-                ConvertYUVToDepth(ydata.data(), udata.data(), vdata.data(), m_depthWidth, m_depthHeight, 10.0f, data.depthData.data() + 16);
+                if (m_faceReader == nullptr)
+                    Initialize();
+                DepthData data;
+                std::vector<uint8_t> ydata(m_depthWidth * m_depthHeight), udata(m_depthWidth * m_depthHeight / 4),
+                    vdata(m_depthWidth * m_depthHeight / 4);
+                memcpy(data.depthData.data(), m_depthVals.data(), sizeof(float) * 16);
+                data.depthData.resize(m_depthWidth * m_depthHeight + 16);
+                bool hasFrames = false;
+                if (m_depthStreamer->ReadFrameYUV420(ydata.data(), udata.data(), vdata.data()))
+                {
+                    hasFrames = true;
+                    ConvertYUVToDepth(ydata.data(), udata.data(), vdata.data(), m_depthWidth, m_depthHeight, 10.0f, data.depthData.data() + 16);
+                }
+                std::unique_lock<std::mutex> mlock(m_hasFramesMtx);
+                m_frames.push(std::move(data));
             }
             else
-                hasFrames = false;
-        }
-        {
-            size_t ysize = m_vidWidth * m_vidHeight;
-            size_t usize = m_vidWidth * m_vidHeight / 4;
-            data.vidData.resize(ysize + usize * 2 + sizeof(YCrCbData));
-            YCrCbData* vidProps = (YCrCbData*)data.vidData.data();
-            vidProps->yOffset = sizeof(YCrCbData);
-            vidProps->cbCrOffset = vidProps->yOffset + ysize;
-            vidProps->yRowBytes = m_vidWidth;
-            vidProps->cbCrRowBytes = m_vidWidth;
-
-            std::vector<uint8_t> udata(m_vidWidth * m_vidHeight / 4),
-                vdata(m_vidWidth * m_vidHeight / 4);
-            uint8_t* outydata = data.vidData.data() + vidProps->yOffset;
-            uint8_t* ydata = data.vidData.data() + vidProps->yOffset;
-            uint8_t* outuvdata = data.vidData.data() + vidProps->cbCrOffset;
-            if (!m_vidReader->ReadFrameYUV420(outydata, udata.data(), vdata.data()))
-                    hasFrames = false;
-
-            uint8_t* curOutUVRow = outuvdata;
-            const uint8_t* curInURow = udata.data();
-            const uint8_t* curInVRow = vdata.data();
-            for (size_t y = 0; y < m_vidHeight / 2; ++y)
             {
-                uint8_t* curOutUVPtr = curOutUVRow;
-                const uint8_t* curInUPtr = curInURow;
-                const uint8_t* curInVPtr = curInVRow;
-                for (size_t x = 0; x < m_vidWidth / 2; ++x)
+                if (m_notfound)
+                    break;
+                if (m_vidReader == nullptr)
+                    Initialize();
+                if (m_vidReader == nullptr)
+                    break;
+                DepthData data;
+                data.props.depthHeight = m_depthHeight;
+                data.props.depthWidth = m_depthWidth;
+                data.props.vidHeight = m_vidHeight;
+                data.props.vidWidth = m_vidWidth;
+                if (false && !m_faceReader->eof())
                 {
-                    *curOutUVPtr = *curInUPtr;
-                    curOutUVPtr++;
-                    curInUPtr++;
-                    *curOutUVPtr = *curInVPtr;
-                    curOutUVPtr++;
-                    curInVPtr++;
+                    std::vector<size_t> data;
+                    ReadBlock(*m_faceReader, data);
+                    std::vector<FaceDataProps> fdp;
+                    ReadBlock(*m_faceReader, fdp);
+                    std::vector<float> vertices;
+                    ReadBlock(*m_faceReader, vertices);
                 }
-                curOutUVRow += m_vidWidth;
-                curInURow += m_vidWidth / 2;
-                curInVRow += m_vidWidth / 2;
+
+
+                bool hasFrames = true;
+                {
+                    std::vector<uint8_t> ydata(m_depthWidth * m_depthHeight), udata(m_depthWidth * m_depthHeight / 4),
+                        vdata(m_depthWidth * m_depthHeight / 4);
+                    data.depthData.resize(m_depthWidth * m_depthHeight + 16);
+                    memcpy(data.depthData.data(), m_depthVals.data(), sizeof(float) * 16);
+                    if (m_depthReader->ReadFrameYUV420(ydata.data(), udata.data(), vdata.data()))
+                    {
+                        ConvertYUVToDepth(ydata.data(), udata.data(), vdata.data(), m_depthWidth, m_depthHeight, 10.0f, data.depthData.data() + 16);
+                    }
+                    else
+                        hasFrames = false;
+                }
+                {
+                    size_t ysize = m_vidWidth * m_vidHeight;
+                    size_t usize = m_vidWidth * m_vidHeight / 4;
+                    data.vidData.resize(ysize + usize * 2 + sizeof(YCrCbData));
+                    YCrCbData* vidProps = (YCrCbData*)data.vidData.data();
+                    vidProps->yOffset = sizeof(YCrCbData);
+                    vidProps->cbCrOffset = vidProps->yOffset + ysize;
+                    vidProps->yRowBytes = m_vidWidth;
+                    vidProps->cbCrRowBytes = m_vidWidth;
+
+                    std::vector<uint8_t> udata(m_vidWidth * m_vidHeight / 4),
+                        vdata(m_vidWidth * m_vidHeight / 4);
+                    uint8_t* outydata = data.vidData.data() + vidProps->yOffset;
+                    uint8_t* ydata = data.vidData.data() + vidProps->yOffset;
+                    uint8_t* outuvdata = data.vidData.data() + vidProps->cbCrOffset;
+                    if (!m_vidReader->ReadFrameYUV420(outydata, udata.data(), vdata.data()))
+                        hasFrames = false;
+
+                    uint8_t* curOutUVRow = outuvdata;
+                    const uint8_t* curInURow = udata.data();
+                    const uint8_t* curInVRow = vdata.data();
+                    for (size_t y = 0; y < m_vidHeight / 2; ++y)
+                    {
+                        uint8_t* curOutUVPtr = curOutUVRow;
+                        const uint8_t* curInUPtr = curInURow;
+                        const uint8_t* curInVPtr = curInVRow;
+                        for (size_t x = 0; x < m_vidWidth / 2; ++x)
+                        {
+                            *curOutUVPtr = *curInUPtr;
+                            curOutUVPtr++;
+                            curInUPtr++;
+                            *curOutUVPtr = *curInVPtr;
+                            curOutUVPtr++;
+                            curInVPtr++;
+                        }
+                        curOutUVRow += m_vidWidth;
+                        curInURow += m_vidWidth / 2;
+                        curInVRow += m_vidWidth / 2;
+                    }
+                }
+                std::unique_lock<std::mutex> mlock(m_hasFramesMtx);
+                m_frames.push(std::move(data));
             }
         }
-        return hasFrames;
-    }    
+    }
 }

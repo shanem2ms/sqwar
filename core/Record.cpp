@@ -122,7 +122,7 @@ namespace sam
     void Recorder::StreamFrameBkg(DepthData& frame)
     {
         if (m_depthStream == nullptr) {
-            m_depthStream = std::make_shared<FFmpegOutputStreamer>("udp://10.142.64.140:23000", frame.props.depthWidth,
+            m_depthStream = std::make_shared<FFmpegOutputStreamer>("udp://127.0.0.1:23000", frame.props.depthWidth,
                 frame.props.depthHeight, true);
         }        
         float avgavg = 0;

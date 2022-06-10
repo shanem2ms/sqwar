@@ -79,4 +79,20 @@ namespace sam
         FFmpegFileReader(const std::string& inname);
         bool ReadFrameYUV420(uint8_t* ydata, uint8_t* udata, uint8_t* vdata);
     };
+
+    class FFmpegInputStreamer
+    {
+        AVFormatContext* m_fmt_ctx;
+        AVCodecContext* m_dec_ctx;
+        int m_video_stream_index;
+        int64_t m_last_pts;
+        std::string m_filename;
+        std::vector<AVFrame*> m_decodedFrames;
+        void Open();
+    public:
+        int GetWidth() const;
+        int GetHeight() const;
+        FFmpegInputStreamer(const std::string& inname);
+        bool ReadFrameYUV420(uint8_t* ydata, uint8_t* udata, uint8_t* vdata);
+    };
 }

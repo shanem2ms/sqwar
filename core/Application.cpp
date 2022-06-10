@@ -116,14 +116,14 @@ namespace sam
         m_world->Layout(w, h);
     }
 
-    static bool playback = false;
+    static bool playback = true;
     void Application::Tick(float time, double deviceTimestamp)
     {
         m_deviceTimestamp = deviceTimestamp;
         if (playback)
         {
             if (m_player == nullptr)
-                m_player = std::make_shared<Player>(m_documentsPath);
+                m_player = std::make_shared<Player>(m_documentsPath, true);
 
             DepthData depthData;
             if (m_player->GetNextFrame(depthData))
