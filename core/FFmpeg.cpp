@@ -427,6 +427,13 @@ namespace sam
         StartWrite(w, h);
     }
 
+
+    int InterruptCallback(void* ctx) {
+        FFmpegOutputStreamer* pThis =
+            (FFmpegOutputStreamer*)ctx;
+        return 0;
+    }
+
     int FFmpegOutputStreamer::StartWrite(uint32_t width, uint32_t height)
     {
         av_register_all();
@@ -435,13 +442,16 @@ namespace sam
 
         //oformat->video_codec = AV_CODEC_ID_H265;
 
-        int err = avformat_alloc_output_context2(&ofctx, nullptr, "rtsp", m_file.c_str());
+        int err = avformat_alloc_output_context2(&ofctx, nullptr, "h264", m_file.c_str());
 
         oformat = ofctx->oformat;
         if (err) {
             std::cout << "can't create output context" << std::endl;
             return -1;
         }
+
+        ofctx->interrupt_callback.callback = InterruptCallback;
+        ofctx->interrupt_callback.opaque = this;
 
         AVCodec* codec = nullptr;
 
@@ -474,15 +484,32 @@ namespace sam
         stream->avg_frame_rate = AVRational{ fps, 1 };
         avcodec_parameters_to_context(cctx, stream->codecpar);
         cctx->time_base = AVRational{ 1, fps };
-        cctx->max_b_frames = 2;
-        cctx->gop_size = 12;
         cctx->framerate = AVRational{ fps, 1 };
+        cctx->bit_rate_tolerance = 0;
+        cctx->rc_max_rate = 0;
+        cctx->rc_buffer_size = 0;
+        cctx->gop_size = 5;
+        cctx->max_b_frames = 0;
+        cctx->b_frame_strategy = 1;
+        cctx->coder_type = 1;
+        cctx->me_cmp = 1;
+        cctx->me_range = 16;
+        cctx->qmin = 10;
+        cctx->qmax = 51;
+        cctx->scenechange_threshold = 40;
+        cctx->flags |= AV_CODEC_FLAG_LOOP_FILTER;
+        cctx->me_subpel_quality = 5;
+        cctx->i_quant_factor = 0.71;
+        cctx->qcompress = 0.6;
+        cctx->max_qdiff = 4;
+
+
 
         if (stream->codecpar->codec_id == AV_CODEC_ID_H264) {
-            av_opt_set(cctx, "preset", "medium", 0);
+            av_opt_set(cctx, "preset", "ultrafast", 0);
         }
         else if (stream->codecpar->codec_id == AV_CODEC_ID_H265) {
-            av_opt_set(cctx, "preset", "medium", 0);
+            av_opt_set(cctx, "preset", "ultrafast", 0);
         }
         else
         {
@@ -505,7 +532,7 @@ namespace sam
 
         if ((err = avformat_write_header(ofctx, NULL)) < 0) {
             std::cout << "Failed to write header" << err << std::endl;
-            return -1;
+           //return -1;
         }
 
         av_dump_format(ofctx, 0, m_file.c_str(), 1);
@@ -634,6 +661,12 @@ namespace sam
             static int counter = 0;
             uint8_t* size = ((uint8_t*)pkt.data);
             av_interleaved_write_frame(ofctx, &pkt);
+        }
+        else
+        {
+            char errmsg[2048];
+            av_strerror(ret, errmsg, 2048);
+
         }
         av_packet_unref(&pkt);
     }

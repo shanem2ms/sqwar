@@ -122,9 +122,18 @@ namespace sam
     void Recorder::StreamFrameBkg(DepthData& frame)
     {
         if (m_depthStream == nullptr) {
-            m_depthStream = std::make_shared<FFmpegOutputStreamer>("rtsp://127.0.0.1:8554/depth.sdp", frame.props.depthWidth,
+            m_depthStream = std::make_shared<FFmpegOutputStreamer>("udp://10.142.64.140:23000", frame.props.depthWidth,
                 frame.props.depthHeight, true);
         }        
+        float avgavg = 0;
+        float avgmax = 0;
+        std::vector<uint8_t> depthYData(frame.props.depthWidth * frame.props.depthHeight);
+        std::vector<uint8_t> depthUData((frame.props.depthWidth * frame.props.depthHeight) / 4);
+        std::vector<uint8_t> depthVData((frame.props.depthWidth * frame.props.depthHeight) / 4);
+        sam::ConvertDepthToYUV(frame.depthData.data() + 16, frame.props.depthWidth,
+            frame.props.depthHeight, 10.0f, depthYData.data(), depthUData.data(), depthVData.data());
+
+        m_depthStream->WriteFrameYUV420(depthYData.data(), depthUData.data(), depthVData.data());
     }
 
     void Recorder::WriteFrameBkg(DepthData& frame)
