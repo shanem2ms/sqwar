@@ -399,7 +399,7 @@ namespace sam
             {
                 int inlineSize = frame->linesize[idx];
                 int outlineSize = outLineSizes[idx];
-                uint8_t *inData = frame->data[idx];
+                uint8_t* inData = frame->data[idx];
                 uint8_t* outData = outDatas[idx];
                 for (int y = 0; y < outHeights[idx]; ++y)
                 {
@@ -532,7 +532,7 @@ namespace sam
 
         if ((err = avformat_write_header(ofctx, NULL)) < 0) {
             std::cout << "Failed to write header" << err << std::endl;
-           //return -1;
+            //return -1;
         }
 
         av_dump_format(ofctx, 0, m_file.c_str(), 1);
@@ -714,5 +714,130 @@ namespace sam
         }
 
     }
-}
 
+
+    FFmpegInputStreamer::FFmpegInputStreamer(const std::string& filename) :
+        m_filename(filename),
+        m_video_stream_index(-1),
+        m_last_pts(AV_NOPTS_VALUE),
+        m_fmt_ctx(nullptr),
+        m_dec_ctx(nullptr)
+    {
+        av_register_all();
+        avcodec_register_all();
+        avformat_network_init();
+        Open();
+    }
+
+    void FFmpegInputStreamer::Open()
+    {
+        AVCodec* dec;
+        int ret;
+
+        AVDictionary* options = NULL;
+        av_dict_set(&options, "framerate", "20", 0);
+
+        if ((ret = avformat_open_input(&m_fmt_ctx, m_filename.c_str(), NULL, NULL)) < 0) {
+            av_log(NULL, AV_LOG_ERROR, "Cannot open input file\n");
+            return;
+        }
+
+        if ((ret = avformat_find_stream_info(m_fmt_ctx, NULL)) < 0) {
+            av_log(NULL, AV_LOG_ERROR, "Cannot find stream information\n");
+            return;
+        }
+
+        /* select the video stream */
+        ret = av_find_best_stream(m_fmt_ctx, AVMEDIA_TYPE_VIDEO, -1, -1, &dec, 0);
+        if (ret < 0) {
+            av_log(NULL, AV_LOG_ERROR, "Cannot find a video stream in the input file\n");
+            return;
+        }
+        m_video_stream_index = ret;
+
+        /* create decoding context */
+        m_dec_ctx = avcodec_alloc_context3(dec);
+        if (!m_dec_ctx)
+            return;
+        avcodec_parameters_to_context(m_dec_ctx, m_fmt_ctx->streams[m_video_stream_index]->codecpar);
+
+        /* init the video decoder */
+        if ((ret = avcodec_open2(m_dec_ctx, dec, NULL)) < 0) {
+            av_log(NULL, AV_LOG_ERROR, "Cannot open video decoder\n");
+            return;
+        }
+    }
+
+    int FFmpegInputStreamer::GetWidth() const
+    {
+        return m_dec_ctx->width;
+    }
+    int FFmpegInputStreamer::GetHeight() const
+    {
+        return m_dec_ctx->height;
+    }
+
+    bool FFmpegInputStreamer::ReadFrameYUV420(uint8_t* ydata, uint8_t* udata, uint8_t* vdata)
+    {
+        if (m_decodedFrames.size() == 0)
+        {
+            int ret;
+            AVPacket* packet;
+            packet = av_packet_alloc();
+            AVFrame* frame = av_frame_alloc();
+            /* read all packets */
+            while (m_decodedFrames.size() == 0) {
+                if ((ret = av_read_frame(m_fmt_ctx, packet)) < 0)
+                    break;
+
+                if (packet->stream_index == m_video_stream_index) {
+                    ret = avcodec_send_packet(m_dec_ctx, packet);
+                    if (ret < 0) {
+                        av_log(NULL, AV_LOG_ERROR, "Error while sending a packet to the decoder\n");
+                        break;
+                    }
+
+                    while (ret >= 0) {
+                        ret = avcodec_receive_frame(m_dec_ctx, frame);
+                        if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
+                            break;
+                        }
+                        else if (ret < 0) {
+                            av_log(NULL, AV_LOG_ERROR, "Error while receiving a frame from the decoder\n");
+                            return false;
+                        }
+
+                        frame->pts = frame->best_effort_timestamp;
+                        m_decodedFrames.push_back(frame);
+                        frame = av_frame_alloc();
+                    }
+                }
+                av_packet_unref(packet);
+            }
+        }
+        if (m_decodedFrames.size() > 0)
+        {
+            int outLineSizes[3] = { m_dec_ctx->width, m_dec_ctx->width / 2, m_dec_ctx->width / 2 };
+            int outHeights[3] = { m_dec_ctx->height, m_dec_ctx->height / 2, m_dec_ctx->height / 2 };
+            uint8_t* outDatas[3] = { ydata, udata, vdata };
+            AVFrame* frame = m_decodedFrames[0];
+            for (int idx = 0; idx < 3; ++idx)
+            {
+                int inlineSize = frame->linesize[idx];
+                int outlineSize = outLineSizes[idx];
+                uint8_t* inData = frame->data[idx];
+                uint8_t* outData = outDatas[idx];
+                for (int y = 0; y < outHeights[idx]; ++y)
+                {
+                    memcpy(outData, inData, outlineSize);
+                    inData += inlineSize;
+                    outData += outlineSize;
+                }
+            }
+            av_frame_free(&m_decodedFrames[0]);
+            m_decodedFrames.erase(m_decodedFrames.begin());
+            return true;
+        }
+        return false;
+    }
+}
