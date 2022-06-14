@@ -22,7 +22,7 @@ namespace sam
     {
         std::shared_ptr<FFmpegFileReader> m_vidReader;
         std::shared_ptr<FFmpegFileReader> m_depthReader;
-        std::shared_ptr<FFmpegInputStreamer> m_depthStreamer;
+        std::shared_ptr<FFmpegInputStreamer> m_depthVidStreamer;
         std::shared_ptr<std::fstream> m_faceReader;
         std::string m_documentsPath;
         std::vector<float> m_depthVals;        

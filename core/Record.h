@@ -21,7 +21,7 @@ namespace sam
 
     class Recorder
     {
-        std::shared_ptr<FFmpegOutputStreamer> m_depthStream;
+        std::shared_ptr<FFmpegOutputStreamer> m_depthVidStream;
         std::shared_ptr<FFmpegFileWriter> m_depthWriter;
         std::shared_ptr<FFmpegFileWriter> m_vidWriter;
         std::vector<DepthData> m_depthDataQueue;

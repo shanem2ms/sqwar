@@ -275,7 +275,7 @@ namespace sam
                                depth.props.depthWidth, depth.props.depthHeight, 10.0f,
                                depth.depthData.data() + 16);
                                */
-        m_world->OnDepthBuffer(depth);
+        //m_world->OnDepthBuffer(depth);
         m_wasrecording = m_isrecording;
     }
 

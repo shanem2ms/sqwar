@@ -45,7 +45,7 @@ namespace sam
     {
         if (m_streaming)
         {
-            m_depthStreamer = std::make_shared<FFmpegInputStreamer>("udp://127.0.0.1:23000");
+            m_depthVidStreamer = std::make_shared<FFmpegInputStreamer>("udp://127.0.0.1:23000");
             {
                 m_faceReader = std::make_shared<std::fstream>(m_documentsPath + "/face.bin", std::ios::in | std::ios::binary);
                 size_t val;
@@ -54,8 +54,10 @@ namespace sam
                 ReadBlock(*m_faceReader, m_depthVals);
                 ReadBlock(*m_faceReader, m_indices);
             }
-            m_depthWidth = m_depthStreamer->GetWidth();
-            m_depthHeight = m_depthStreamer->GetHeight();
+            m_depthWidth = m_depthVidStreamer->GetWidth();
+            m_depthHeight = m_depthVidStreamer->GetHeight() / 2;
+            m_vidWidth = m_depthVidStreamer->GetWidth();
+            m_vidHeight = m_depthVidStreamer->GetHeight() / 2;
         }
         else
         {
@@ -108,33 +110,22 @@ namespace sam
     void Player::BackgroundThread()
     {
         while (!m_terminate)
-        {
-            if (m_streaming)
+        {            
             {
-                if (m_faceReader == nullptr)
-                    Initialize();
-                DepthData data;
-                std::vector<uint8_t> ydata(m_depthWidth * m_depthHeight), udata(m_depthWidth * m_depthHeight / 4),
-                    vdata(m_depthWidth * m_depthHeight / 4);
-                data.depthData.resize(m_depthWidth * m_depthHeight + 16);
-                memcpy(data.depthData.data(), m_depthVals.data(), sizeof(float) * 16);
-                bool hasFrames = false;
-                if (m_depthStreamer->ReadFrameYUV420(ydata.data(), udata.data(), vdata.data()))
+                if (m_streaming)
                 {
-                    hasFrames = true;
-                    ConvertYUVToDepth(ydata.data(), udata.data(), vdata.data(), m_depthWidth, m_depthHeight, 10.0f, data.depthData.data() + 16);
+                    if (m_faceReader == nullptr)
+                        Initialize();
                 }
-                std::unique_lock<std::mutex> mlock(m_hasFramesMtx);
-                m_frames.push(std::move(data));
-            }
-            else
-            {
-                if (m_notfound)
-                    break;
-                if (m_vidReader == nullptr)
-                    Initialize();
-                if (m_vidReader == nullptr)
-                    break;
+                else
+                {
+                    if (m_notfound)
+                        break;
+                    if (m_vidReader == nullptr)
+                        Initialize();
+                    if (m_vidReader == nullptr)
+                        break;
+                }
                 DepthData data;
                 data.props.depthHeight = m_depthHeight;
                 data.props.depthWidth = m_depthWidth;
@@ -153,56 +144,55 @@ namespace sam
 
                 bool hasFrames = true;
                 {
-                    std::vector<uint8_t> ydata(m_depthWidth * m_depthHeight), udata(m_depthWidth * m_depthHeight / 4),
-                        vdata(m_depthWidth * m_depthHeight / 4);
+                    size_t ySize = m_depthWidth * m_depthHeight;
+                    size_t uvSize = m_depthWidth * m_depthHeight / 4;
+                    std::vector<uint8_t> ydata(ySize * 2), udata(uvSize * 2),
+                        vdata(uvSize * 2);
                     data.depthData.resize(m_depthWidth * m_depthHeight + 16);
                     memcpy(data.depthData.data(), m_depthVals.data(), sizeof(float) * 16);
-                    if (m_depthReader->ReadFrameYUV420(ydata.data(), udata.data(), vdata.data()))
+                    if (m_depthVidStreamer->ReadFrameYUV420(ydata.data(), udata.data(), vdata.data()))
                     {
                         ConvertYUVToDepth(ydata.data(), udata.data(), vdata.data(), m_depthWidth, m_depthHeight, 10.0f, data.depthData.data() + 16);
+
+
+                        size_t ysize = m_vidWidth * m_vidHeight;
+                        size_t usize = m_vidWidth * m_vidHeight / 4;
+                        data.vidData.resize(ysize + usize * 2 + sizeof(YCrCbData));
+                        YCrCbData* vidProps = (YCrCbData*)data.vidData.data();
+                        vidProps->yOffset = sizeof(YCrCbData);
+                        vidProps->cbCrOffset = vidProps->yOffset + ysize;
+                        vidProps->yRowBytes = m_vidWidth;
+                        vidProps->cbCrRowBytes = m_vidWidth;
+
+                        uint8_t* outydata = data.vidData.data() + vidProps->yOffset;
+                        uint8_t* yVid = ydata.data() + ySize;
+                        memcpy(outydata, yVid, ysize);
+                        uint8_t* outuvdata = data.vidData.data() + vidProps->cbCrOffset;
+
+                        uint8_t* curOutUVRow = outuvdata;
+                        const uint8_t* curInURow = udata.data() + uvSize;
+                        const uint8_t* curInVRow = vdata.data() + uvSize;
+                        for (size_t y = 0; y < m_vidHeight / 2; ++y)
+                        {
+                            uint8_t* curOutUVPtr = curOutUVRow;
+                            const uint8_t* curInUPtr = curInURow;
+                            const uint8_t* curInVPtr = curInVRow;
+                            for (size_t x = 0; x < m_vidWidth / 2; ++x)
+                            {
+                                *curOutUVPtr = *curInUPtr;
+                                curOutUVPtr++;
+                                curInUPtr++;
+                                *curOutUVPtr = *curInVPtr;
+                                curOutUVPtr++;
+                                curInVPtr++;
+                            }
+                            curOutUVRow += m_vidWidth;
+                            curInURow += m_vidWidth / 2;
+                            curInVRow += m_vidWidth / 2;
+                        }
                     }
                     else
                         hasFrames = false;
-                }
-                {
-                    size_t ysize = m_vidWidth * m_vidHeight;
-                    size_t usize = m_vidWidth * m_vidHeight / 4;
-                    data.vidData.resize(ysize + usize * 2 + sizeof(YCrCbData));
-                    YCrCbData* vidProps = (YCrCbData*)data.vidData.data();
-                    vidProps->yOffset = sizeof(YCrCbData);
-                    vidProps->cbCrOffset = vidProps->yOffset + ysize;
-                    vidProps->yRowBytes = m_vidWidth;
-                    vidProps->cbCrRowBytes = m_vidWidth;
-
-                    std::vector<uint8_t> udata(m_vidWidth * m_vidHeight / 4),
-                        vdata(m_vidWidth * m_vidHeight / 4);
-                    uint8_t* outydata = data.vidData.data() + vidProps->yOffset;
-                    uint8_t* ydata = data.vidData.data() + vidProps->yOffset;
-                    uint8_t* outuvdata = data.vidData.data() + vidProps->cbCrOffset;
-                    if (!m_vidReader->ReadFrameYUV420(outydata, udata.data(), vdata.data()))
-                        hasFrames = false;
-
-                    uint8_t* curOutUVRow = outuvdata;
-                    const uint8_t* curInURow = udata.data();
-                    const uint8_t* curInVRow = vdata.data();
-                    for (size_t y = 0; y < m_vidHeight / 2; ++y)
-                    {
-                        uint8_t* curOutUVPtr = curOutUVRow;
-                        const uint8_t* curInUPtr = curInURow;
-                        const uint8_t* curInVPtr = curInVRow;
-                        for (size_t x = 0; x < m_vidWidth / 2; ++x)
-                        {
-                            *curOutUVPtr = *curInUPtr;
-                            curOutUVPtr++;
-                            curInUPtr++;
-                            *curOutUVPtr = *curInVPtr;
-                            curOutUVPtr++;
-                            curInVPtr++;
-                        }
-                        curOutUVRow += m_vidWidth;
-                        curInURow += m_vidWidth / 2;
-                        curInVRow += m_vidWidth / 2;
-                    }
                 }
                 std::unique_lock<std::mutex> mlock(m_hasFramesMtx);
                 m_frames.push(std::move(data));

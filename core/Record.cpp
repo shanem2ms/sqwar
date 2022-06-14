@@ -121,19 +121,69 @@ namespace sam
 
     void Recorder::StreamFrameBkg(DepthData& frame)
     {
-        if (m_depthStream == nullptr) {
-            m_depthStream = std::make_shared<FFmpegOutputStreamer>("udp://127.0.0.1:23000", frame.props.depthWidth,
-                frame.props.depthHeight, true);
+        if (m_depthVidStream == nullptr) {
+            m_depthVidStream = std::make_shared<FFmpegOutputStreamer>("udp://127.0.0.1:23000", frame.props.depthWidth,
+                frame.props.depthHeight * 2, true);
         }        
         float avgavg = 0;
         float avgmax = 0;
-        std::vector<uint8_t> depthYData(frame.props.depthWidth * frame.props.depthHeight);
-        std::vector<uint8_t> depthUData((frame.props.depthWidth * frame.props.depthHeight) / 4);
-        std::vector<uint8_t> depthVData((frame.props.depthWidth * frame.props.depthHeight) / 4);
+        size_t ySize = (frame.props.depthWidth * frame.props.depthHeight);
+        size_t uvSize = (frame.props.depthWidth * frame.props.depthHeight) / 4;
+        std::vector<uint8_t> depthYData(ySize * 2);
+        std::vector<uint8_t> depthUData(uvSize * 2);
+        std::vector<uint8_t> depthVData(uvSize * 2);
         sam::ConvertDepthToYUV(frame.depthData.data() + 16, frame.props.depthWidth,
             frame.props.depthHeight, 10.0f, depthYData.data(), depthUData.data(), depthVData.data());
 
-        m_depthStream->WriteFrameYUV420(depthYData.data(), depthUData.data(), depthVData.data());
+        {
+            uint8_t *data = frame.vidData.data();
+            YCrCbData* yuvData = (YCrCbData*)data;
+            yuvData->cbCrOffset -= yuvData->yOffset;
+            yuvData->yOffset = 0;
+
+            int yPitch = yuvData->yRowBytes;
+            uint8_t* ydata = data + sizeof(YCrCbData);
+            uint8_t* yDst = depthYData.data() + ySize;
+            for (int y = 0; y < frame.props.depthHeight; ++y)
+            {
+                int srcY = (y * frame.props.vidHeight) / frame.props.depthHeight;
+                uint8_t* ySrc = ydata + srcY * yuvData->yRowBytes;
+                for (int x = 0; x < frame.props.depthWidth; ++x)
+                {
+                    int srcX = (x * frame.props.vidWidth) / frame.props.depthWidth;
+                    yDst[x] = ySrc[srcX];
+                }
+
+                yDst += frame.props.depthWidth;
+            }
+
+            int dstlineIn = frame.props.vidWidth / 2;
+            int uvheightIn = frame.props.vidHeight / 2;
+            int dstline = frame.props.depthWidth / 2;
+            int uvheight = frame.props.depthHeight / 2;
+            uint8_t* udata = new uint8_t[dstline * uvheight];
+            uint8_t* vdata = new uint8_t[dstline * uvheight];
+            uint8_t* uvData = ydata + yuvData->cbCrOffset;
+
+            uint8_t* uDstPtr = depthUData.data() + uvSize;
+            uint8_t* vDstPtr = depthVData.data() + uvSize;
+            uint8_t* uvSrcPtr = uvData;
+            for (int y = 0; y < uvheight; ++y)
+            {
+                int srcY = (y * uvheightIn) / uvheight;
+                uvSrcPtr = uvData + (yuvData->cbCrRowBytes * srcY);
+                for (int idx = 0; idx < dstline; ++idx)
+                {
+                    int idxSrc = (idx * dstlineIn) / dstline;
+                    uDstPtr[idx] = uvSrcPtr[idxSrc * 2];
+                    vDstPtr[idx] = uvSrcPtr[idxSrc * 2 + 1];
+                }
+                uDstPtr += dstline;
+                vDstPtr += dstline;
+            }
+        }
+        m_depthVidStream->WriteFrameYUV420(depthYData.data(), depthUData.data(), depthVData.data());
+        //m_depthVidStream->WriteFrameYCbCr(frame.vidData.data());
     }
 
     void Recorder::WriteFrameBkg(DepthData& frame)
