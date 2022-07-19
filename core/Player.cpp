@@ -45,7 +45,7 @@ namespace sam
     {
         if (m_streaming)
         {
-            m_depthVidStreamer = std::make_shared<FFmpegInputStreamer>("udp://127.0.0.1:23000");
+            m_depthVidStreamer = std::make_shared<FFmpegInputStreamer>("udp://192.168.1.40:23000");
             {
                 m_faceReader = std::make_shared<std::fstream>(m_documentsPath + "/face.bin", std::ios::in | std::ios::binary);
                 size_t val;
