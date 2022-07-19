@@ -494,8 +494,8 @@ namespace sam
         cctx->coder_type = 1;
         cctx->me_cmp = 1;
         cctx->me_range = 16;
-        cctx->qmin = 10;
-        cctx->qmax = 51;
+        cctx->qmin = 1;
+        cctx->qmax = 1;
         cctx->scenechange_threshold = 40;
         cctx->flags |= AV_CODEC_FLAG_LOOP_FILTER;
         cctx->me_subpel_quality = 5;
@@ -504,6 +504,7 @@ namespace sam
         cctx->max_qdiff = 4;
 
 
+        av_opt_set(cctx, "CRF", "1", 0);
 
         if (stream->codecpar->codec_id == AV_CODEC_ID_H264) {
             av_opt_set(cctx, "preset", "ultrafast", 0);
@@ -537,87 +538,6 @@ namespace sam
 
         av_dump_format(ofctx, 0, m_file.c_str(), 1);
         std::cout << stream->time_base.den << " " << stream->time_base.num << std::endl;
-    }
-
-    void FFmpegOutputStreamer::WriteFrameYCbCr(uint8_t* data)
-    {
-        YCrCbData* yuvData = (YCrCbData*)data;
-        yuvData->cbCrOffset -= yuvData->yOffset;
-        yuvData->yOffset = 0;
-
-        int yPitch = yuvData->yRowBytes;
-        uint8_t* ydata = data + sizeof(YCrCbData);
-        int dstline = cctx->width / 2;
-        int uvheight = cctx->height / 2;
-        uint8_t* udata = new uint8_t[dstline * uvheight];
-        uint8_t* vdata = new uint8_t[dstline * uvheight];
-        uint8_t* uvData = ydata + yuvData->cbCrOffset;
-
-        uint8_t* uDstPtr = udata;
-        uint8_t* vDstPtr = vdata;
-        uint8_t* uvSrcPtr = uvData;
-        for (int y = 0; y < uvheight; ++y)
-        {
-            for (int idx = 0; idx < dstline; ++idx)
-            {
-                uDstPtr[idx] = uvSrcPtr[idx * 2];
-                vDstPtr[idx] = uvSrcPtr[idx * 2 + 1];
-            }
-            uDstPtr += dstline;
-            vDstPtr += dstline;
-            uvSrcPtr += yuvData->cbCrRowBytes;
-        }
-
-        int err;
-        if (!videoFrame) {
-            videoFrame = av_frame_alloc();
-            videoFrame->format = AV_PIX_FMT_YUV420P;
-            videoFrame->width = cctx->width;
-            videoFrame->height = cctx->height;
-
-            if ((err = av_frame_get_buffer(videoFrame, 32)) < 0) {
-                std::cout << "Failed to allocate picture" << err << std::endl;
-                return;
-            }
-        }
-
-
-        if (!swsCtx) {
-            swsCtx = sws_getContext(cctx->width, cctx->height, AV_PIX_FMT_YUV420P, cctx->width, cctx->height,
-                AV_PIX_FMT_YUV420P, SWS_BICUBIC, 0, 0, 0);
-        }
-
-        int inLinesize[3] = { yuvData->yRowBytes, dstline, dstline };
-        const uint8_t* linedata[3] = { ydata, udata, vdata };
-
-        // From RGB to YUV
-        sws_scale(swsCtx, linedata, inLinesize, 0, cctx->height, videoFrame->data,
-            videoFrame->linesize);
-        //90k
-        videoFrame->pts = (frameCounter++) * stream->time_base.den / (stream->time_base.num * fps);
-
-
-        //std::cout << videoFrame->pts << " " << cctx->time_base.num << " " << cctx->time_base.den << " " << frameCounter
-          //        << std::endl;
-
-        if ((err = avcodec_send_frame(cctx, videoFrame)) < 0) {
-            std::cout << "Failed to send frame" << err << std::endl;
-            return;
-        }
-        AVPacket pkt;
-        av_init_packet(&pkt);
-        pkt.data = NULL;
-        pkt.size = 0;
-        pkt.flags |= AV_PKT_FLAG_KEY;
-        int ret = 0;
-        if ((ret = avcodec_receive_packet(cctx, &pkt)) == 0) {
-            static int counter = 0;
-            av_interleaved_write_frame(ofctx, &pkt);
-        }
-        av_packet_unref(&pkt);
-
-        delete[]udata;
-        delete[]vdata;
     }
 
     void FFmpegOutputStreamer::WriteFrameYUV420(uint8_t* ydata, uint8_t* udata, uint8_t* vdata)

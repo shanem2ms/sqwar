@@ -39,10 +39,9 @@ namespace sam
 
     class FFmpegOutputStreamer
     {
-
         std::string m_file;
-        uint8_t m_w;
-        uint8_t m_h;
+        int m_w;
+        int m_h;
 
         AVFrame* videoFrame = nullptr;
         AVCodecContext* cctx = nullptr;
@@ -60,7 +59,6 @@ namespace sam
 
         FFmpegOutputStreamer(const std::string& outname, uint32_t w, uint32_t h,
             bool isDepth);
-        void WriteFrameYCbCr(uint8_t* data);
         void WriteFrameYUV420(uint8_t* ydata, uint8_t* udata, uint8_t* vdata);
         void FinishWrite();
     };

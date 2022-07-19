@@ -70,9 +70,9 @@ public:
 
     void OnDepthBufferInst(DepthData& depthData);
     static void OnDepthBuffer(DepthData& depthData);
-    static void OnFaceData(const FaceDataProps &props, const std::vector<float> &vertices,
+    static void OnFaceData(FaceDataProps &props, const std::vector<float> &vertices,
                            const std::vector<int16_t> &indices);
-    void OnFaceDataInst(const FaceDataProps& props, const std::vector<float>& vertices,
+    void OnFaceDataInst(FaceDataProps& props, const std::vector<float>& vertices,
         const std::vector<int16_t>& indices);
     static void SetDebugMsgFunc(void (*dbgfunc)(const char*));
     static void DebugMsg(const std::string& str);

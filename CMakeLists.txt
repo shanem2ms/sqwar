@@ -1,9 +1,10 @@
 cmake_minimum_required(VERSION 3.15.0 FATAL_ERROR)
 set(CMAKE_SYSTEM_VERSION 10.0 CACHE STRING "" FORCE)
+
 if (MSVC)
 include(/homep4/vcpkg/scripts/buildsystems/vcpkg.cmake)
+add_link_options(/Zi)
 endif()
-include (ExternalProject)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -11,6 +12,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(CMAKE_CONFIGURATION_TYPES "Debug;Release") 
 project(sqwar C CXX)
+message("CMAKE_CXX_FLAGS_RELEASE ${CMAKE_CXX_FLAGS_RELEASE}")
 
 set(PROJECT_NAME sqwar)
 
@@ -26,6 +28,7 @@ set (BX_CONFIG_DEBUG 0)
 set (BGFX_INCLUDE_ROOT ${CMAKE_INSTALL_PREFIX}/include)
 set (BGFX_INCLUDE ${BGFX_INCLUDE_ROOT}/bgfx)
 set (BGFX_LIB ${CMAKE_INSTALL_PREFIX}/lib)
+STRING(REPLACE "/O2" "/Od" CMAKE_CXX_FLAGS_RELWITHDEBINFO ${CMAKE_CXX_FLAGS_RELWITHDEBINFO})
 
 message("install path ${CMAKE_INSTALL_PREFIX}")
 

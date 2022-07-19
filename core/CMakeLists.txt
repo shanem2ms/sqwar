@@ -3,13 +3,11 @@ set (BGFX_INCLUDE ${BGFX_INCLUDE_ROOT}/bgfx)
 set (BGFX_LIB ${CMAKE_INSTALL_PREFIX}/lib)
 
 if (MSVC)
-add_compile_options(/await:strict /Zc:__cplusplus)
+add_compile_options(/Zi /await:strict /Zc:__cplusplus)
 set(BX_INC_DIR_COMPAT ${BGFX_INCLUDE_ROOT}/compat/msvc)
 elseif (APPLE)
 set(BX_INC_DIR_COMPAT ${BGFX_INCLUDE_ROOT}/compat/osx)
 endif()
-
-#STRING(REPLACE "-O2" "-Od" CMAKE_CXX_FLAGS_RELEASE ${CMAKE_CXX_FLAGS_RELEASE})
 
 add_subdirectory(shaders)
 

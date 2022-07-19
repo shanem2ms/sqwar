@@ -115,11 +115,14 @@ namespace sam
         m_engine->Resize(w, h);
         m_world->Layout(w, h);
     }
-
+    static double sStartTime = -1;
     static bool playback = true;
     void Application::Tick(float time, double deviceTimestamp)
     {
-        m_deviceTimestamp = deviceTimestamp;
+        if (sStartTime < 0)
+            sStartTime = deviceTimestamp;
+
+        m_deviceTimestamp = deviceTimestamp - sStartTime;
         if (playback)
         {
             if (m_player == nullptr)
@@ -220,7 +223,7 @@ namespace sam
         size_t sz = data.size() * sizeof(T);
         WriteFileData(path, (const char*)data.data(), sz);
     }
-
+    
     void Application::WriteDepthDataToFile(DepthData& depthData)
     {
         m_filemtx.lock();
@@ -257,6 +260,7 @@ namespace sam
         c.SendData((const unsigned char*)depthData.data(), depthData.size() *
             sizeof(float));
 #endif
+        depth.props.timestamp -= sStartTime;
 
         if (m_isrecording && !m_wasrecording)
             m_bkgWriter->StartRecording(m_documentsPath);
@@ -279,12 +283,14 @@ namespace sam
         m_wasrecording = m_isrecording;
     }
 
-    void Application::OnFaceData(const FaceDataProps& props, const std::vector<float>& vertices, const std::vector<int16_t> &indices)
+    void Application::OnFaceData(FaceDataProps& props, const std::vector<float>& vertices, const std::vector<int16_t> &indices)
     {
         s_pInst->OnFaceDataInst(props, vertices, indices);
     }
-    void Application::OnFaceDataInst(const FaceDataProps& props, const std::vector<float>& vertices, const std::vector<int16_t>& indices)
+    void Application::OnFaceDataInst(FaceDataProps& props, const std::vector<float>& vertices, const std::vector<int16_t>& indices)
     {
+        props.timestamp -= sStartTime;
+
         if (m_isrecording && !m_wasrecording)
             m_bkgWriter->StartRecording(m_documentsPath);
         else if (!m_isrecording && m_wasrecording)
