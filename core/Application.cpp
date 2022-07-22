@@ -260,6 +260,9 @@ namespace sam
         c.SendData((const unsigned char*)depthData.data(), depthData.size() *
             sizeof(float));
 #endif
+        if (sStartTime < 0)
+            sStartTime = depth.props.timestamp;
+
         depth.props.timestamp -= sStartTime;
 
         if (m_isrecording && !m_wasrecording)
@@ -289,6 +292,9 @@ namespace sam
     }
     void Application::OnFaceDataInst(FaceDataProps& props, const std::vector<float>& vertices, const std::vector<int16_t>& indices)
     {
+        if (sStartTime < 0)
+            sStartTime = props.timestamp;
+
         props.timestamp -= sStartTime;
 
         if (m_isrecording && !m_wasrecording)

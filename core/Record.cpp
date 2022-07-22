@@ -59,10 +59,7 @@ namespace sam
                     FinishFFmpeg();
                 else
                 {
-                    if (streammode)
-                        StreamFrameBkg(frame);
-                    else
-                        WriteFrameBkg(frame);
+                    StreamFrameBkg(frame);
                     g_framesWritten++;
                 }
             }
@@ -182,43 +179,13 @@ namespace sam
                 vDstPtr += dstline;
             }
         }
-        m_depthVidStream->WriteFrameYUV420(depthYData.data(), depthUData.data(), depthVData.data());
+        m_depthVidStream->WriteFrameYUV420(depthYData.data(), depthUData.data(), depthVData.data(),
+            frame.props.timestamp);
         //m_depthVidStream->WriteFrameYCbCr(frame.vidData.data());
-    }
-
-    void Recorder::WriteFrameBkg(DepthData& frame)
-    {
-        if (m_depthWriter == nullptr)
-        {
-            m_depthWriter = std::make_shared<FFmpegFileWriter>(m_outputPath + "/depth.mp4", frame.props.depthWidth,
-                frame.props.depthHeight, true);
-            m_vidWriter = std::make_shared<FFmpegFileWriter>(m_outputPath + "/vid.mp4", frame.props.vidWidth,
-                frame.props.vidHeight, false);
-        }
-        float avgavg = 0;
-        float avgmax = 0;
-        std::vector<uint8_t> depthYData(frame.props.depthWidth * frame.props.depthHeight);
-        std::vector<uint8_t> depthUData((frame.props.depthWidth * frame.props.depthHeight) / 4);
-        std::vector<uint8_t> depthVData((frame.props.depthWidth * frame.props.depthHeight) / 4);
-        sam::ConvertDepthToYUV(frame.depthData.data() + 16, frame.props.depthWidth,
-            frame.props.depthHeight, 10.0f, depthYData.data(), depthUData.data(), depthVData.data());
-
-        m_depthWriter->WriteFrameYUV420(depthYData.data(), depthUData.data(), depthVData.data());
-        m_vidWriter->WriteFrameYCbCr(frame.vidData.data());
     }
 
     void Recorder::FinishFFmpeg()
     {
-        if (m_depthWriter != nullptr)
-        {
-            m_depthWriter->FinishWrite();
-            m_depthWriter = nullptr;
-        }
-        if (m_vidWriter != nullptr)
-        {
-            m_vidWriter->FinishWrite();
-            m_vidWriter = nullptr;
-        }
     }
 
     void Recorder::WriteFaceFrame(const FaceDataProps& props, const std::vector<float>& vertices, const std::vector<int16_t>& indices)

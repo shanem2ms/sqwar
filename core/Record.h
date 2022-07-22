@@ -16,14 +16,10 @@ namespace sam
         std::vector<int16_t> indices;
     };
     class FFmpegOutputStreamer;
-    class FFmpegFileWriter;
-    class FFmpegFileWriter;
 
     class Recorder
     {
         std::shared_ptr<FFmpegOutputStreamer> m_depthVidStream;
-        std::shared_ptr<FFmpegFileWriter> m_depthWriter;
-        std::shared_ptr<FFmpegFileWriter> m_vidWriter;
         std::vector<DepthData> m_depthDataQueue;
         std::vector<FaceData> m_faceDataQueue;
         std::fstream m_fs;
@@ -38,7 +34,6 @@ namespace sam
         std::mutex m_hasFramesMtx;
         bool m_hasFrames;
         bool m_writeFaceHeader;
-        void WriteFrameBkg(DepthData& frame);
         void StreamFrameBkg(DepthData& frame);
         static void BackgroundThreadF(Recorder* pThis);
         void BackgroundThread();

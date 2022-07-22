@@ -43,53 +43,19 @@ namespace sam
 
     void Player::Initialize()
     {
-        if (m_streaming)
+        m_depthVidStreamer = std::make_shared<FFmpegInputStreamer>("udp://192.168.1.40:23000");
         {
-            m_depthVidStreamer = std::make_shared<FFmpegInputStreamer>("udp://192.168.1.40:23000");
-            {
-                m_faceReader = std::make_shared<std::fstream>(m_documentsPath + "/face.bin", std::ios::in | std::ios::binary);
-                size_t val;
-                std::vector<size_t> data;
-                ReadBlock(*m_faceReader, data);
-                ReadBlock(*m_faceReader, m_depthVals);
-                ReadBlock(*m_faceReader, m_indices);
-            }
-            m_depthWidth = m_depthVidStreamer->GetWidth();
-            m_depthHeight = m_depthVidStreamer->GetHeight() / 2;
-            m_vidWidth = m_depthVidStreamer->GetWidth();
-            m_vidHeight = m_depthVidStreamer->GetHeight() / 2;
+            m_faceReader = std::make_shared<std::fstream>(m_documentsPath + "/face.bin", std::ios::in | std::ios::binary);
+            size_t val;
+            std::vector<size_t> data;
+            ReadBlock(*m_faceReader, data);
+            ReadBlock(*m_faceReader, m_depthVals);
+            ReadBlock(*m_faceReader, m_indices);
         }
-        else
-        {
-            std::filesystem::path depthfile = std::filesystem::path(m_documentsPath);
-            depthfile.append("depth.mp4");
-            if (!std::filesystem::exists(depthfile))
-            {
-                m_notfound = true;
-                return;
-            }
-            {
-                m_faceReader = std::make_shared<std::fstream>(m_documentsPath + "/face.bin", std::ios::in | std::ios::binary);
-                size_t val;
-                std::vector<size_t> data;
-                ReadBlock(*m_faceReader, data);
-                ReadBlock(*m_faceReader, m_depthVals);
-                ReadBlock(*m_faceReader, m_indices);
-            }
-            {
-                m_depthReader = std::make_shared<FFmpegFileReader>(depthfile.string());
-                m_depthWidth = m_depthReader->GetWidth();
-                m_depthHeight = m_depthReader->GetHeight();
-            }
-            {
-                std::filesystem::path vidfile = std::filesystem::path(m_documentsPath);
-                vidfile.append("vid.mp4");
-                m_vidReader = std::make_shared<FFmpegFileReader>(vidfile.string());
-                int nFrames = 0;
-                m_vidWidth = m_vidReader->GetWidth();
-                m_vidHeight = m_vidReader->GetHeight();
-            }
-        }
+        m_depthWidth = m_depthVidStreamer->GetWidth();
+        m_depthHeight = m_depthVidStreamer->GetHeight() / 2;
+        m_vidWidth = m_depthVidStreamer->GetWidth();
+        m_vidHeight = m_depthVidStreamer->GetHeight() / 2;
     }
 
     bool Player::GetNextFrame(DepthData& data)
